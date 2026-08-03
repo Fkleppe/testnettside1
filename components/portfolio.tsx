@@ -104,7 +104,8 @@ function AddPanel({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Holdi
   const [portfolioValue, setPortfolioValue] = useState(""); const [units, setUnits] = useState(""); const [cost, setCost] = useState(""); const [price, setPrice] = useState(""); const [daily, setDaily] = useState("0");
   const [loading, setLoading] = useState(false); const [error, setError] = useState(""); const [quoteSource, setQuoteSource] = useState("Manuelt registrert");
   const matches = useMemo(() => searchInstruments(kind, search), [kind, search]);
-  const calculatedUnits = Number(price) > 0 && Number(portfolioValue) > 0 ? Number(portfolioValue) / Number(price) : 0;
+  const calculatedUnits = toNumber(price) > 0 && toNumber(portfolioValue) > 0 ? toNumber(portfolioValue) / toNumber(price) : 0;
+  const calculatedValue = toNumber(price) > 0 && toNumber(units) > 0 ? toNumber(units) * toNumber(price) : 0;
 
   async function fetchQuote(targetSymbol = quoteSymbol || symbol) {
     if (!targetSymbol) return setError("Velg et instrument eller skriv inn et symbol.");
@@ -120,7 +121,6 @@ function AddPanel({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Holdi
 
   function selectInstrument(item: Instrument) {
     setSelected(item); setSearch(""); setName(item.name); setSymbol(item.symbol); setQuoteSymbol(item.quoteSymbol ?? item.symbol); setError("");
-    if (item.kind !== "fund" && mode === "automatic") queueMicrotask(() => fetchQuote(item.quoteSymbol ?? item.symbol));
   }
 
   function changeKind(value: AssetKind) {
@@ -130,10 +130,10 @@ function AddPanel({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Holdi
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    const finalUnits = entryMethod === "value" ? calculatedUnits : Number(units);
-    const currentValue = finalUnits * Number(price);
+    const finalUnits = entryMethod === "value" ? calculatedUnits : toNumber(units);
+    const currentValue = finalUnits * toNumber(price);
     if (!name || !symbol || !price || !finalUnits) return setError("Velg investering og fyll inn verdi eller antall samt gjeldende kurs.");
-    onAdd({ id: crypto.randomUUID(), name, symbol: symbol.toUpperCase(), kind, platform, mode, units: finalUnits, cost: Number(cost) || currentValue, price: Number(price), dailyPercent: Number(daily || 0), currency: "NOK", source: quoteSource, updatedAt: new Date().toISOString(), delayed: kind === "fund" });
+    onAdd({ id: crypto.randomUUID(), name, symbol: symbol.toUpperCase(), kind, platform, mode, units: finalUnits, cost: toNumber(cost) || currentValue, price: toNumber(price), dailyPercent: toNumber(daily), currency: "NOK", source: quoteSource, updatedAt: new Date().toISOString(), delayed: kind === "fund" });
   }
 
   return <div className="panel-layer" role="dialog" aria-modal="true" aria-label="Legg til investering"><button className="panel-scrim" onClick={onClose} aria-label="Lukk" /><aside className="panel">
@@ -147,12 +147,13 @@ function AddPanel({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Holdi
       <fieldset className="mode-choice"><legend>Kurshenting</legend><label className={mode === "automatic" ? "chosen" : ""}><input type="radio" checked={mode === "automatic"} onChange={() => setMode("automatic")} /><span><b>Automatisk</b><small>Hent fra datakilde</small></span></label><label className={mode === "manual" ? "chosen" : ""}><input type="radio" checked={mode === "manual"} onChange={() => setMode("manual")} /><span><b>Manuell</b><small>Du styrer kursen</small></span></label></fieldset>
       {!selected && <div className="two-fields manual-identifiers"><label>Eget navn<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Navn på investeringen" /></label><label>Symbol / ISIN<input value={symbol} onChange={(e) => { setSymbol(e.target.value); setQuoteSymbol(e.target.value); }} placeholder="Ticker eller ISIN" /></label></div>}
       <label>Plattform<div className="select-wrap"><select value={platform} onChange={(e) => setPlatform(e.target.value)}><option>Nordnet</option><option>Kron</option><option>Firi</option><option>DNB</option><option>Storebrand</option><option>KLP</option><option>Annet</option></select><ChevronDown size={16} /></div></label>
-      {mode === "automatic" && selected && <button type="button" className="fetch" onClick={() => fetchQuote()} disabled={loading}><RefreshCw size={17} className={loading ? "spin" : ""} />{loading ? "Henter kurs…" : price ? `Oppdater kurs · ${money.format(Number(price))}` : "Hent dagens kurs"}</button>}
+      <fieldset className="entry-choice"><legend>Hva vil du skrive inn?</legend><button type="button" className={entryMethod === "value" ? "selected" : ""} onClick={() => setEntryMethod("value")}>Sum</button><button type="button" className={entryMethod === "units" ? "selected" : ""} onClick={() => setEntryMethod("units")}>Antall andeler</button></fieldset>
+      {entryMethod === "value" ? <label>Sum i dag<input inputMode="decimal" value={portfolioValue} onChange={(e) => setPortfolioValue(e.target.value)} placeholder="For eksempel 50 000 kr" /></label> : <label>Antall andeler<input inputMode="decimal" value={units} onChange={(e) => setUnits(e.target.value)} placeholder="For eksempel 12,5" /></label>}
+      {mode === "automatic" && selected && <button type="button" className="fetch" onClick={() => fetchQuote()} disabled={loading}><RefreshCw size={17} className={loading ? "spin" : ""} />{loading ? "Henter kurs…" : price ? "Oppdater kurs og beregning" : "Hent kurs og beregn"}</button>}
       {error && <p className="form-error"><CircleHelp size={16} />{error}</p>}
-      <fieldset className="entry-choice"><legend>Hva vet du?</legend><button type="button" className={entryMethod === "value" ? "selected" : ""} onClick={() => setEntryMethod("value")}>Bare beløpet</button><button type="button" className={entryMethod === "units" ? "selected" : ""} onClick={() => setEntryMethod("units")}>Antall andeler</button></fieldset>
-      {entryMethod === "value" ? <label>Dagens verdi<input inputMode="decimal" value={portfolioValue} onChange={(e) => setPortfolioValue(e.target.value)} placeholder="For eksempel 50 000 kr" /></label> : <label>Antall / andeler<input inputMode="decimal" value={units} onChange={(e) => setUnits(e.target.value)} placeholder="0" /></label>}
       <div className="two-fields"><label>Nåværende kurs<input inputMode="decimal" value={price} onChange={(e) => { setPrice(e.target.value); if (mode === "manual") setQuoteSource("Manuelt registrert"); }} placeholder="Hentes eller skrives inn" /></label><label>Dagens endring<input inputMode="decimal" value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="0 %" /></label></div>
-      {entryMethod === "value" && calculatedUnits > 0 && <div className="calculation"><span>Beregnet beholdning</span><b>{number.format(calculatedUnits)} andeler</b><small>{money.format(Number(portfolioValue))} ÷ {money.format(Number(price))}</small></div>}
+      {entryMethod === "value" && calculatedUnits > 0 && <div className="calculation"><span>Beregnet beholdning</span><b>{number.format(calculatedUnits)} andeler</b><small>{money.format(toNumber(portfolioValue))} ÷ {money.format(toNumber(price))}</small></div>}
+      {entryMethod === "units" && calculatedValue > 0 && <div className="calculation"><span>Beregnet verdi i dag</span><b>{money.format(calculatedValue)}</b><small>{number.format(toNumber(units))} andeler × {money.format(toNumber(price))}</small></div>}
       <label>Opprinnelig investert <small className="optional">Valgfritt — brukes til total avkastning</small><input inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder={portfolioValue || "Hvis tomt brukes dagens verdi"} /></label>
       {kind === "fund" && <p className="fund-warning"><CircleHelp size={17} /><span><b>Fond har forsinket kurs.</b> NAV oppdateres normalt én gang per dag, ofte neste bankdag.</span></p>}
       <button className="submit" type="submit"><Plus size={18} /> Legg til investering</button>
@@ -163,3 +164,8 @@ function AddPanel({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Holdi
 function formatTime(value: string) { return new Intl.DateTimeFormat("nb-NO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value)); }
 function signedMoney(value: number) { return `${value >= 0 ? "+" : "−"}${money.format(Math.abs(value))}`; }
 function signedPercent(value: number) { return `${value >= 0 ? "+" : "−"}${Math.abs(value).toLocaleString("nb-NO", { maximumFractionDigits: 2 })} %`; }
+function toNumber(value: string) {
+  const compact = value.replace(/\s/g, "");
+  const withoutThousands = /^\d{1,3}(\.\d{3})+$/.test(compact) ? compact.replace(/\./g, "") : compact;
+  return Number(withoutThousands.replace(",", ".")) || 0;
+}
