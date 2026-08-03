@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, ChevronDown, CircleHelp, Coins, Landmark, Plus, RefreshCw, Search, ShieldCheck, Sparkles, WalletCards, X } from "lucide-react";
+import { searchInstruments, type Instrument } from "@/lib/catalog";
 import { demoHoldings } from "@/lib/demo";
 import type { AssetKind, Holding, PriceMode } from "@/lib/types";
 
@@ -97,15 +98,19 @@ function HoldingRow({ item, onRemove }: { item: Holding; onRemove: () => void })
 function AddPanel({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Holding) => void }) {
   const [kind, setKind] = useState<AssetKind>("fund");
   const [mode, setMode] = useState<PriceMode>("automatic");
-  const [symbol, setSymbol] = useState(""); const [name, setName] = useState(""); const [platform, setPlatform] = useState("Nordnet");
-  const [units, setUnits] = useState(""); const [cost, setCost] = useState(""); const [price, setPrice] = useState(""); const [daily, setDaily] = useState("0");
+  const [entryMethod, setEntryMethod] = useState<"value" | "units">("value");
+  const [search, setSearch] = useState(""); const [selected, setSelected] = useState<Instrument | null>(null);
+  const [symbol, setSymbol] = useState(""); const [name, setName] = useState(""); const [quoteSymbol, setQuoteSymbol] = useState(""); const [platform, setPlatform] = useState("Nordnet");
+  const [portfolioValue, setPortfolioValue] = useState(""); const [units, setUnits] = useState(""); const [cost, setCost] = useState(""); const [price, setPrice] = useState(""); const [daily, setDaily] = useState("0");
   const [loading, setLoading] = useState(false); const [error, setError] = useState(""); const [quoteSource, setQuoteSource] = useState("Manuelt registrert");
+  const matches = useMemo(() => searchInstruments(kind, search), [kind, search]);
+  const calculatedUnits = Number(price) > 0 && Number(portfolioValue) > 0 ? Number(portfolioValue) / Number(price) : 0;
 
-  async function fetchQuote() {
-    if (!symbol) return setError("Skriv inn ticker, symbol eller CoinGecko-ID.");
+  async function fetchQuote(targetSymbol = quoteSymbol || symbol) {
+    if (!targetSymbol) return setError("Velg et instrument eller skriv inn et symbol.");
     setLoading(true); setError("");
     try {
-      const response = await fetch(`/api/quote?kind=${kind}&symbol=${encodeURIComponent(symbol)}`);
+      const response = await fetch(`/api/quote?kind=${kind}&symbol=${encodeURIComponent(targetSymbol)}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setPrice(String(data.price)); setDaily(String(data.changePercent ?? 0)); setQuoteSource(data.source); if (data.name && !name) setName(data.name);
@@ -113,23 +118,42 @@ function AddPanel({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Holdi
     finally { setLoading(false); }
   }
 
+  function selectInstrument(item: Instrument) {
+    setSelected(item); setSearch(""); setName(item.name); setSymbol(item.symbol); setQuoteSymbol(item.quoteSymbol ?? item.symbol); setError("");
+    if (item.kind !== "fund" && mode === "automatic") queueMicrotask(() => fetchQuote(item.quoteSymbol ?? item.symbol));
+  }
+
+  function changeKind(value: AssetKind) {
+    setKind(value); setSelected(null); setSearch(""); setName(""); setSymbol(""); setQuoteSymbol(""); setPrice(""); setDaily("0"); setError("");
+    if (value === "crypto" && platform === "Nordnet") setPlatform("Firi");
+  }
+
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!name || !symbol || !units || !cost || !price) return setError("Fyll ut navn, symbol, antall, investert beløp og kurs.");
-    onAdd({ id: crypto.randomUUID(), name, symbol: symbol.toUpperCase(), kind, platform, mode, units: Number(units), cost: Number(cost), price: Number(price), dailyPercent: Number(daily || 0), currency: "NOK", source: quoteSource, updatedAt: new Date().toISOString(), delayed: kind === "fund" });
+    const finalUnits = entryMethod === "value" ? calculatedUnits : Number(units);
+    const currentValue = finalUnits * Number(price);
+    if (!name || !symbol || !price || !finalUnits) return setError("Velg investering og fyll inn verdi eller antall samt gjeldende kurs.");
+    onAdd({ id: crypto.randomUUID(), name, symbol: symbol.toUpperCase(), kind, platform, mode, units: finalUnits, cost: Number(cost) || currentValue, price: Number(price), dailyPercent: Number(daily || 0), currency: "NOK", source: quoteSource, updatedAt: new Date().toISOString(), delayed: kind === "fund" });
   }
 
   return <div className="panel-layer" role="dialog" aria-modal="true" aria-label="Legg til investering"><button className="panel-scrim" onClick={onClose} aria-label="Lukk" /><aside className="panel">
     <div className="panel-head"><div><p className="eyebrow">Ny investering</p><h2>Legg til i oversikten</h2></div><button className="close" onClick={onClose}><X /></button></div>
     <form onSubmit={submit}>
-      <fieldset className="segmented"><legend>Type</legend>{(["fund", "stock", "crypto"] as AssetKind[]).map((value) => <button type="button" key={value} className={kind === value ? "selected" : ""} onClick={() => setKind(value)}>{kindLabel[value]}</button>)}</fieldset>
+      <fieldset className="segmented"><legend>Type</legend>{(["fund", "stock", "crypto"] as AssetKind[]).map((value) => <button type="button" key={value} className={kind === value ? "selected" : ""} onClick={() => changeKind(value)}>{kindLabel[value]}</button>)}</fieldset>
+      <div className="instrument-picker">
+        <label>{selected ? "Valgt investering" : `Søk etter ${kindLabel[kind].toLocaleLowerCase("nb-NO")}`}</label>
+        {selected ? <div className="selected-instrument"><div className={`asset-icon ${kind}`}>{kind === "fund" ? <Landmark size={19} /> : kind === "stock" ? <WalletCards size={19} /> : <Coins size={19} />}</div><span><b>{selected.name}</b><small>{selected.market} · {selected.symbol}</small></span><button type="button" onClick={() => { setSelected(null); setName(""); setSymbol(""); setQuoteSymbol(""); setPrice(""); }}>Bytt</button></div> : <><div className="search-field"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} autoFocus placeholder={kind === "fund" ? "Søk KLP, DNB, global, indeks…" : kind === "stock" ? "Søk Equinor, Apple, ticker…" : "Søk Bitcoin, Ethereum…"} /></div><div className="instrument-results" role="listbox" aria-label={`Tilgjengelige ${kindLabel[kind].toLocaleLowerCase("nb-NO")}`}>{matches.map((item) => <button type="button" key={`${item.kind}-${item.symbol}`} onClick={() => selectInstrument(item)}><span><b>{item.name}</b><small>{item.market}</small></span><em>{item.symbol}</em></button>)}{!matches.length && <p>Ingen treff. Prøv navn, ticker eller marked.</p>}</div></>}
+      </div>
       <fieldset className="mode-choice"><legend>Kurshenting</legend><label className={mode === "automatic" ? "chosen" : ""}><input type="radio" checked={mode === "automatic"} onChange={() => setMode("automatic")} /><span><b>Automatisk</b><small>Hent fra datakilde</small></span></label><label className={mode === "manual" ? "chosen" : ""}><input type="radio" checked={mode === "manual"} onChange={() => setMode("manual")} /><span><b>Manuell</b><small>Du styrer kursen</small></span></label></fieldset>
-      <label>Navn<input value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === "fund" ? "KLP AksjeGlobal Indeks" : kind === "stock" ? "Equinor" : "Bitcoin"} /></label>
-      <div className="two-fields"><label>Symbol / ticker<input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder={kind === "crypto" ? "BTC" : kind === "fund" ? "ISIN eller symbol" : "EQNR"} /></label><label>Plattform<div className="select-wrap"><select value={platform} onChange={(e) => setPlatform(e.target.value)}><option>Nordnet</option><option>Kron</option><option>Firi</option><option>DNB</option><option>Annet</option></select><ChevronDown size={16} /></div></label></div>
-      {mode === "automatic" && <button type="button" className="fetch" onClick={fetchQuote} disabled={loading}><RefreshCw size={17} className={loading ? "spin" : ""} />{loading ? "Henter kurs…" : "Hent dagens kurs"}</button>}
+      {!selected && <div className="two-fields manual-identifiers"><label>Eget navn<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Navn på investeringen" /></label><label>Symbol / ISIN<input value={symbol} onChange={(e) => { setSymbol(e.target.value); setQuoteSymbol(e.target.value); }} placeholder="Ticker eller ISIN" /></label></div>}
+      <label>Plattform<div className="select-wrap"><select value={platform} onChange={(e) => setPlatform(e.target.value)}><option>Nordnet</option><option>Kron</option><option>Firi</option><option>DNB</option><option>Storebrand</option><option>KLP</option><option>Annet</option></select><ChevronDown size={16} /></div></label>
+      {mode === "automatic" && selected && <button type="button" className="fetch" onClick={() => fetchQuote()} disabled={loading}><RefreshCw size={17} className={loading ? "spin" : ""} />{loading ? "Henter kurs…" : price ? `Oppdater kurs · ${money.format(Number(price))}` : "Hent dagens kurs"}</button>}
       {error && <p className="form-error"><CircleHelp size={16} />{error}</p>}
-      <div className="two-fields"><label>Antall / andeler<input inputMode="decimal" value={units} onChange={(e) => setUnits(e.target.value)} placeholder="0" /></label><label>Totalt investert<input inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0 kr" /></label></div>
-      <div className="two-fields"><label>Nåværende kurs<input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0 kr" /></label><label>Dagens endring<input inputMode="decimal" value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="0 %" /></label></div>
+      <fieldset className="entry-choice"><legend>Hva vet du?</legend><button type="button" className={entryMethod === "value" ? "selected" : ""} onClick={() => setEntryMethod("value")}>Bare beløpet</button><button type="button" className={entryMethod === "units" ? "selected" : ""} onClick={() => setEntryMethod("units")}>Antall andeler</button></fieldset>
+      {entryMethod === "value" ? <label>Dagens verdi<input inputMode="decimal" value={portfolioValue} onChange={(e) => setPortfolioValue(e.target.value)} placeholder="For eksempel 50 000 kr" /></label> : <label>Antall / andeler<input inputMode="decimal" value={units} onChange={(e) => setUnits(e.target.value)} placeholder="0" /></label>}
+      <div className="two-fields"><label>Nåværende kurs<input inputMode="decimal" value={price} onChange={(e) => { setPrice(e.target.value); if (mode === "manual") setQuoteSource("Manuelt registrert"); }} placeholder="Hentes eller skrives inn" /></label><label>Dagens endring<input inputMode="decimal" value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="0 %" /></label></div>
+      {entryMethod === "value" && calculatedUnits > 0 && <div className="calculation"><span>Beregnet beholdning</span><b>{number.format(calculatedUnits)} andeler</b><small>{money.format(Number(portfolioValue))} ÷ {money.format(Number(price))}</small></div>}
+      <label>Opprinnelig investert <small className="optional">Valgfritt — brukes til total avkastning</small><input inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder={portfolioValue || "Hvis tomt brukes dagens verdi"} /></label>
       {kind === "fund" && <p className="fund-warning"><CircleHelp size={17} /><span><b>Fond har forsinket kurs.</b> NAV oppdateres normalt én gang per dag, ofte neste bankdag.</span></p>}
       <button className="submit" type="submit"><Plus size={18} /> Legg til investering</button>
     </form>
