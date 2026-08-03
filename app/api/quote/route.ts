@@ -7,8 +7,9 @@ const cryptoIds: Record<string, string> = {
   SOL: "solana", SOLANA: "solana", ADA: "cardano", CARDANO: "cardano",
 };
 
-const officialFundPages: Record<string, string> = {
-  NO0010337678: "https://www.dnb.no/sparing/fond/fond-liste/d/dnb-teknologi-a-NO0010337678",
+const officialFundPages: Record<string, { name: string; url: string }> = {
+  NO0010337678: { name: "DNB Teknologi A", url: "https://www.dnb.no/sparing/fond/fond-liste/d/dnb-teknologi-a-NO0010337678" },
+  LU2075955943: { name: "DNB Fund – Disruptive Opportunities Retail A (N) NOK", url: "https://www.dnb.no/sparing/fond/fond-liste/d/dnb-fund-disruptive-opportunities-n-nok-acc-LU2075955943" },
 };
 
 function parseNorwegianNumber(value: string) {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const officialFundPage = kind === "fund" ? officialFundPages[symbol] : undefined;
     if (officialFundPage) {
-      const response = await fetch(officialFundPage, {
+      const response = await fetch(officialFundPage.url, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/138.0 Safari/537.36",
           "Accept-Language": "nb-NO,nb;q=0.9,en;q=0.7",
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
       const price = navMatch ? parseNorwegianNumber(navMatch[1]) : 0;
       if (response.ok && price > 0) {
         return NextResponse.json({
-          symbol, name: "DNB Teknologi A", price, changePercent: null, currency: "NOK",
+          symbol, name: officialFundPage.name, price, changePercent: null, currency: "NOK",
           source: "DNB · offisiell NAV", asOf: navMatch?.[2], updatedAt: new Date().toISOString(), delayed: true,
         });
       }
