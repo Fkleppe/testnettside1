@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="nb"><head><link rel="preconnect" href="https://api.fontshare.com" /><link href="https://api.fontshare.com/v2/css?f[]=switzer@400,700,800&display=swap" rel="stylesheet" /></head><body>{children}</body></html>;
+  return <html lang="nb" className={`${GeistSans.variable} ${GeistMono.variable}`}><body className={GeistSans.className}>{children}</body></html>;
 }
