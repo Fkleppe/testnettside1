@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import "@fontsource-variable/bricolage-grotesque";
-import "@fontsource-variable/manrope";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="nb"><body>{children}</body></html>;
+  return <html lang="nb"><head><link rel="preconnect" href="https://api.fontshare.com" /><link href="https://api.fontshare.com/v2/css?f[]=switzer@400,700,800&display=swap" rel="stylesheet" /></head><body>{children}</body></html>;
 }
