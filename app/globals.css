@@ -1,6 +1,6 @@
 :root {
-  --font-ui: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-data: var(--font-geist-mono), "SFMono-Regular", Consolas, monospace;
+  --font-ui: "Schibsted Grotesk Variable", Arial, sans-serif;
+  --font-data: "Schibsted Grotesk Variable", Arial, sans-serif;
   --page: oklch(18.2% 0 0);
   --header: oklch(0% 0 0);
   --surface: oklch(22.6% 0 0);
