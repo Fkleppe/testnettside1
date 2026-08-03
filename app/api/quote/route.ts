@@ -42,7 +42,10 @@ export async function GET(request: NextRequest) {
     const officialFundPage = kind === "fund" ? officialFundPages[symbol] : undefined;
     if (officialFundPage) {
       const response = await fetch(officialFundPage, {
-        headers: { "User-Agent": "MinSparing/1.0 (+https://minsparing.vercel.app)" },
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/138.0 Safari/537.36",
+          "Accept-Language": "nb-NO,nb;q=0.9,en;q=0.7",
+        },
         next: { revalidate: 3600 },
       });
       const html = await response.text();
