@@ -19,7 +19,7 @@ const funds: Instrument[] = [
   { name: "KLP AksjeEuropa Indeks N", symbol: "KLP-EUROPA-N", kind: "fund", market: "Europa indeks", tags: ["klp", "europa", "indeks"] },
   { name: "DNB Global Indeks A", symbol: "DNB-GLOBAL-A", kind: "fund", market: "Global indeks", tags: ["dnb", "global", "indeks"] },
   { name: "DNB Norge Indeks A", symbol: "DNB-NORGE-A", kind: "fund", market: "Norge indeks", tags: ["dnb", "norge", "indeks"] },
-  { name: "DNB Teknologi A", symbol: "DNB-TEKNOLOGI-A", kind: "fund", market: "Teknologi", tags: ["dnb", "teknologi", "aktiv"] },
+  { name: "DNB Teknologi A", symbol: "NO0010337678", quoteSymbol: "NO0010337678", kind: "fund", market: "Teknologi", tags: ["dnb", "teknologi", "aktiv"] },
   { name: "DNB Norden Indeks A", symbol: "DNB-NORDEN-A", kind: "fund", market: "Norden indeks", tags: ["dnb", "norden", "indeks"] },
   { name: "DNB Klima Indeks A", symbol: "DNB-KLIMA-A", kind: "fund", market: "Global klimaindeks", tags: ["dnb", "klima", "indeks"] },
   { name: "Storebrand Indeks – Alle Markeder N", symbol: "STOREBRAND-ALLE-N", kind: "fund", market: "Hele verden", tags: ["storebrand", "global", "indeks"] },
