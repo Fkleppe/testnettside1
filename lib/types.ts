@@ -1,5 +1,6 @@
 export type AssetKind = "fund" | "stock" | "crypto";
 export type PriceMode = "automatic" | "manual";
+export type AccountGroup = "private" | "business" | "family" | "pension";
 
 export type Holding = {
   id: string;
@@ -11,9 +12,10 @@ export type Holding = {
   units: number;
   cost: number;
   price: number;
-  dailyPercent: number;
+  dailyPercent: number | null;
   currency: string;
   source: string;
   updatedAt: string;
   delayed?: boolean;
+  accountGroup?: AccountGroup;
 };
