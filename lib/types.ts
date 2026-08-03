@@ -34,3 +34,17 @@ export type Holding = {
   delayed?: boolean;
   accountGroup?: AccountGroup;
 };
+
+export type PortfolioEvent = {
+  id: string;
+  type: "opening" | "buy";
+  holdingId: string;
+  holdingName: string;
+  accountGroup: AccountGroup;
+  date: string;
+  createdAt: string;
+  units: number;
+  price: number;
+  amount: number;
+  note?: string;
+};

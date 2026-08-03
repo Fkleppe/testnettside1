@@ -18,6 +18,7 @@ npm run dev
 - **Twelve Data**: ett felles grensesnitt for aksjer og internasjonale fond. Freemium-konto kreves; instrument- og børsdekning avhenger av abonnementet.
 - **Yahoo Finance**: reservekilde for aksjer. Utenlandske priser regnes om til NOK, inklusive endringen i valutakurs fra forrige sluttkurs. Dette er en uoffisiell gratiskilde uten garantert oppetid eller komplett børsdekning.
 - **DNB**: offisiell NAV støttes foreløpig for DNB Teknologi A og DNB Fund – Disruptive Opportunities Retail A (N) NOK.
+- **Historisk fondsavkastning**: 1-, 3-, 5- og 10-års annualisert avkastning (CAGR) for 22 mye brukte fond. Hovedsettet er kontrollert mot Rentersrente/Morningstar per juni 2026. DNB Fund – Disruptive Opportunities bruker DNBs fondsoversikt per 3. august 2026. Tallene er etter fondets forvaltningsgebyr, men før plattformgebyr og skatt.
 - **Fond/NAV**: offisiell NAV beregnes normalt én gang daglig etter markedsslutt og publiseres senere. Appen skiller mellom «beregnes etter markedsslutt», «innen normal publisering» og «datakilde etter fristen». Den siste statusen brukes først når forventet publisering er passert. Helger håndteres; norske og internasjonale børshelligdager kommer i en senere fase.
 
 ## MVP-arkitektur
@@ -25,7 +26,9 @@ npm run dev
 - Next.js App Router og TypeScript
 - serverrute i `/api/quote` skjuler API-nøkler og cacher svar
 - porteføljen lagres lokalt i nettleseren; ingen konto eller database i første versjon
+- ekstra kjøp kan registreres som sum eller antall andeler; beholdning, inngangsverdi og en lokal aktivitetslogg oppdateres samlet
 - dagsendring regnes fra forrige kurs når den finnes; prosent alene omregnes tilbake til korrekt kroneendring
+- fremtidsestimatet kan bruke verdi-vektet historisk CAGR eller helt manuelle antakelser, med egen startverdi og månedlig sparing
 - en historikkgraf vises først når løsningen har ekte, vedvarende daglige snapshots
 - responsivt, norsk grensesnitt med demoportefølje
 

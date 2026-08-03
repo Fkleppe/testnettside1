@@ -64,6 +64,17 @@ export function holdingValue(item: Holding) {
   return item.units * item.price;
 }
 
+export function addPurchase(
+  item: Holding,
+  purchase: { units: number; amount: number },
+) {
+  return {
+    ...item,
+    units: item.units + Math.max(0, purchase.units),
+    cost: item.cost + Math.max(0, purchase.amount),
+  };
+}
+
 export function hasCalendarDayChange(item: Holding) {
   return (
     item.changePeriod !== "24h" &&

@@ -17,15 +17,18 @@ import {
   Clock3,
   Coins,
   Eye,
+  History,
   Landmark,
   ListFilter,
   LockKeyhole,
   Pencil,
   Plus,
+  ReceiptText,
   RefreshCw,
   Search,
   Settings2,
   ShieldCheck,
+  ShoppingCart,
   Trash2,
   TrendingUp,
   UserRound,
@@ -35,6 +38,14 @@ import {
 import { searchInstruments, type Instrument } from "@/lib/catalog";
 import { demoHoldings } from "@/lib/demo";
 import {
+  buildProjectionPath,
+  buildProjectionSeries,
+  calculateHistoricalPortfolio,
+  projectValue,
+  type ReturnPeriod,
+} from "@/lib/historical-returns";
+import {
+  addPurchase,
   calculateTotals,
   dailyValue,
   getQuoteState,
@@ -43,15 +54,28 @@ import {
   holdingValue,
   migrateHolding,
 } from "@/lib/portfolio";
-import type { AccountGroup, AssetKind, Holding, PriceMode } from "@/lib/types";
+import type {
+  AccountGroup,
+  AssetKind,
+  Holding,
+  PortfolioEvent,
+  PriceMode,
+} from "@/lib/types";
 
 const STORAGE_KEY = "min-sparing-holdings-v1";
+const EVENT_STORAGE_KEY = "min-sparing-events-v1";
 const money = new Intl.NumberFormat("nb-NO", {
   style: "currency",
   currency: "NOK",
   maximumFractionDigits: 0,
 });
 const number = new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 4 });
+const shortDate = new Intl.DateTimeFormat("nb-NO", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
 const kindLabel: Record<AssetKind, string> = {
   fund: "Fond",
   stock: "Aksje",
@@ -98,9 +122,11 @@ type SortMode = "value" | "today" | "name";
 
 export function Portfolio() {
   const [holdings, setHoldings] = useState<Holding[]>(demoHoldings);
+  const [events, setEvents] = useState<PortfolioEvent[]>([]);
   const [ready, setReady] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Holding | null>(null);
+  const [buying, setBuying] = useState<Holding | null>(null);
   const [advanced, setAdvanced] = useState(false);
   const [activeAccount, setActiveAccount] = useState<AccountFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("value");
@@ -116,12 +142,21 @@ export function Portfolio() {
           void refreshOfficialFunds(migrated).then(setHoldings);
         } catch {}
       }
+      const savedEvents = localStorage.getItem(EVENT_STORAGE_KEY);
+      if (savedEvents) {
+        try {
+          setEvents(JSON.parse(savedEvents) as PortfolioEvent[]);
+        } catch {}
+      }
       setReady(true);
     });
   }, []);
   useEffect(() => {
     if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(holdings));
   }, [holdings, ready]);
+  useEffect(() => {
+    if (ready) localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(events));
+  }, [events, ready]);
 
   const visibleHoldings = useMemo(
     () =>
@@ -170,6 +205,31 @@ export function Portfolio() {
         item.id === id ? { ...item, accountGroup } : item,
       ),
     );
+  const recordPurchase = (
+    item: Holding,
+    purchase: Omit<
+      PortfolioEvent,
+      "id" | "type" | "holdingId" | "holdingName" | "accountGroup" | "createdAt"
+    >,
+  ) => {
+    setHoldings((current) =>
+      current.map((holding) =>
+        holding.id === item.id ? addPurchase(holding, purchase) : holding,
+      ),
+    );
+    setEvents((current) => [
+      {
+        ...purchase,
+        id: crypto.randomUUID(),
+        type: "buy",
+        holdingId: item.id,
+        holdingName: item.name,
+        accountGroup: getAccount(item),
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+  };
 
   return (
     <main className="app-shell">
@@ -223,6 +283,7 @@ export function Portfolio() {
                 setAdvanced((value) => !value);
                 setAdding(false);
                 setEditing(null);
+                setBuying(null);
               }}
             >
               {advanced ? <Settings2 size={14} /> : <Eye size={14} />}
@@ -262,6 +323,7 @@ export function Portfolio() {
                 setAdvanced(false);
                 setAdding(false);
                 setEditing(null);
+                setBuying(null);
               }}
             >
               <Eye size={14} /> Gå til visning
@@ -347,6 +409,7 @@ export function Portfolio() {
                     item={item}
                     advanced={advanced}
                     onEdit={() => setEditing(item)}
+                    onBuy={() => setBuying(item)}
                     onAccountChange={(group) => moveAccount(item.id, group)}
                   />
                 ))}
@@ -362,11 +425,12 @@ export function Portfolio() {
                 ) : null}
               </div>
             </section>
+            <ForecastPanel holdings={visibleHoldings} />
           </div>
           <aside className="right-stack">
             <TodayPanel totals={totals} />
             <DataPanel holdings={visibleHoldings} />
-            <ForecastPanel currentValue={totals.value} />
+            <ActivityPanel events={events} activeAccount={activeAccount} />
           </aside>
         </section>
       </div>
@@ -387,6 +451,21 @@ export function Portfolio() {
           onClose={() => setAdding(false)}
           onAdd={(item) => {
             setHoldings((current) => [item, ...current]);
+            setEvents((current) => [
+              {
+                id: crypto.randomUUID(),
+                type: "opening",
+                holdingId: item.id,
+                holdingName: item.name,
+                accountGroup: getAccount(item),
+                date: new Date().toISOString().slice(0, 10),
+                createdAt: new Date().toISOString(),
+                units: item.units,
+                price: item.units ? item.cost / item.units : item.price,
+                amount: item.cost,
+              },
+              ...current,
+            ]);
             setActiveAccount(item.accountGroup ?? "private");
             setAdding(false);
           }}
@@ -403,6 +482,16 @@ export function Portfolio() {
           onDelete={(id) => {
             remove(id);
             setEditing(null);
+          }}
+        />
+      ) : null}
+      {advanced && buying ? (
+        <BuyPanel
+          item={buying}
+          onClose={() => setBuying(null)}
+          onBuy={(purchase) => {
+            recordPurchase(buying, purchase);
+            setBuying(null);
           }}
         />
       ) : null}
@@ -693,46 +782,386 @@ function DataPanel({ holdings }: { holdings: Holding[] }) {
   );
 }
 
-function ForecastPanel({ currentValue }: { currentValue: number }) {
+function ActivityPanel({
+  events,
+  activeAccount,
+}: {
+  events: PortfolioEvent[];
+  activeAccount: AccountFilter;
+}) {
+  const visibleEvents = events
+    .filter(
+      (event) =>
+        activeAccount === "all" || event.accountGroup === activeAccount,
+    )
+    .slice(0, 5);
+
+  return (
+    <section className="activity-card" id="aktivitet">
+      <div className="card-title-row">
+        <div>
+          <h2>Aktivitetslogg</h2>
+          <span>Kjøp og nye investeringer</span>
+        </div>
+        <ReceiptText size={16} />
+      </div>
+      {visibleEvents.length ? (
+        <div className="activity-list">
+          {visibleEvents.map((event) => (
+            <div className="activity-row" key={event.id}>
+              <span className="activity-icon">
+                {event.type === "buy" ? (
+                  <ShoppingCart size={14} />
+                ) : (
+                  <Plus size={14} />
+                )}
+              </span>
+              <p>
+                <b>{event.type === "buy" ? "Ekstra kjøp" : "Lagt til"}</b>
+                <span title={event.holdingName}>{event.holdingName}</span>
+                <small>
+                  {formatEventDate(event.date)} · {number.format(event.units)}{" "}
+                  andeler
+                </small>
+              </p>
+              <strong>{money.format(event.amount)}</strong>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="activity-empty">
+          <History size={20} />
+          <p>
+            <b>Ingen kjøp registrert ennå</b>
+            <span>Kjøp du legger inn i avansert modus vises her.</span>
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ForecastPanel({ holdings }: { holdings: Holding[] }) {
   const [years, setYears] = useState(5);
+  const [basis, setBasis] = useState<"history" | "manual">("history");
+  const [historyPeriod, setHistoryPeriod] = useState<ReturnPeriod>(5);
   const [annualReturn, setAnnualReturn] = useState("7");
+  const [fallbackReturn, setFallbackReturn] = useState("7");
   const [monthlySaving, setMonthlySaving] = useState("0");
-  const rate = Math.max(-99, Math.min(50, toNumber(annualReturn)));
+  const [startOverride, setStartOverride] = useState("");
+  const fallbackRate = Math.max(-99, Math.min(50, toNumber(fallbackReturn)));
+  const history = useMemo(
+    () => calculateHistoricalPortfolio(holdings, historyPeriod, fallbackRate),
+    [holdings, historyPeriod, fallbackRate],
+  );
+  const currentValue = startOverride.trim()
+    ? Math.max(0, toNumber(startOverride))
+    : history.totalValue;
+  const manualRate = Math.max(-99, Math.min(50, toNumber(annualReturn)));
+  const rate = basis === "history" ? history.effectiveRate : manualRate;
   const monthly = Math.max(0, toNumber(monthlySaving));
-  const cautious = projectValue(currentValue, monthly, rate - 4, years);
+  const cautiousRate = Math.max(-99, rate - 3);
+  const strongRate = Math.min(50, rate + 3);
+  const cautious = projectValue(currentValue, monthly, cautiousRate, years);
   const expected = projectValue(currentValue, monthly, rate, years);
-  const optimistic = projectValue(currentValue, monthly, rate + 4, years);
+  const optimistic = projectValue(currentValue, monthly, strongRate, years);
+  const contributions = monthly * years * 12;
+  const modeledReturn = expected - currentValue - contributions;
+  const cautiousSeries = buildProjectionSeries(
+    currentValue,
+    monthly,
+    cautiousRate,
+    years,
+  );
+  const expectedSeries = buildProjectionSeries(
+    currentValue,
+    monthly,
+    rate,
+    years,
+  );
+  const strongSeries = buildProjectionSeries(
+    currentValue,
+    monthly,
+    strongRate,
+    years,
+  );
+  const chartMaximum = Math.max(
+    1,
+    ...strongSeries.map((point) => point.value),
+    ...expectedSeries.map((point) => point.value),
+  );
+  const chartWidth = 620;
+  const chartHeight = 176;
 
   return (
     <section className="forecast-card" id="prognose">
       <div className="card-title-row">
         <div>
           <h2>Fremtidsestimat</h2>
-          <span>Scenario, ikke en prognose</span>
+          <span>Historisk grunnlag eller egne antakelser</span>
         </div>
         <TrendingUp size={16} />
       </div>
-      <div className="forecast-years" aria-label="Tidshorisont">
-        {[1, 3, 5, 10].map((value) => (
-          <button
-            key={value}
-            className={years === value ? "selected" : ""}
-            onClick={() => setYears(value)}
-          >
-            {value} år
-          </button>
-        ))}
+      <div
+        className="forecast-mode"
+        role="group"
+        aria-label="Grunnlag for avkastning"
+      >
+        <button
+          className={basis === "history" ? "selected" : ""}
+          aria-pressed={basis === "history"}
+          onClick={() => setBasis("history")}
+        >
+          Historisk avkastning
+        </button>
+        <button
+          className={basis === "manual" ? "selected" : ""}
+          aria-pressed={basis === "manual"}
+          onClick={() => setBasis("manual")}
+        >
+          Egne tall
+        </button>
       </div>
-      <div className="forecast-main">
-        <span>Estimert verdi om {years} år</span>
-        <strong>{money.format(expected)}</strong>
-        <small>{money.format(currentValue)} i dag</small>
+      <div className="forecast-layout">
+        <div className="forecast-controls">
+          {basis === "history" ? (
+            <div className="forecast-control-block">
+              <div className="forecast-label-row">
+                <span>Periode for avkastning</span>
+                <small>Årlig CAGR</small>
+              </div>
+              <div
+                className="forecast-periods"
+                role="group"
+                aria-label="Historikkperiode"
+              >
+                {([1, 3, 5, 10] as ReturnPeriod[]).map((value) => (
+                  <button
+                    key={value}
+                    className={historyPeriod === value ? "selected" : ""}
+                    aria-pressed={historyPeriod === value}
+                    onClick={() => setHistoryPeriod(value)}
+                  >
+                    {value} år
+                  </button>
+                ))}
+              </div>
+              <div className="history-rate-summary">
+                <span>
+                  <b>
+                    {history.historicalRate === null
+                      ? "Ingen treff"
+                      : formatRate(history.historicalRate)}
+                  </b>
+                  <small>verdi-vektet fondshistorikk</small>
+                </span>
+                <span>
+                  <b>{Math.round(history.coveragePercent)} %</b>
+                  <small>
+                    {history.matched.length} av {holdings.length} investeringer
+                  </small>
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="forecast-control-block">
+            <div className="forecast-label-row">
+              <span>Tidshorisont</span>
+              <small>{years} år</small>
+            </div>
+            <div
+              className="forecast-years"
+              role="group"
+              aria-label="Tidshorisont"
+            >
+              {[1, 3, 5, 10, 20, 30].map((value) => (
+                <button
+                  key={value}
+                  className={years === value ? "selected" : ""}
+                  aria-pressed={years === value}
+                  onClick={() => setYears(value)}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="forecast-inputs">
+            <label>
+              Startverdi
+              <span>
+                <input
+                  inputMode="numeric"
+                  value={startOverride}
+                  onChange={(event) => setStartOverride(event.target.value)}
+                  placeholder={String(Math.round(history.totalValue))}
+                  aria-label="Startverdi for scenario"
+                />
+                <i>kr</i>
+              </span>
+              <small>Tomt felt bruker porteføljen</small>
+            </label>
+            <label>
+              Månedlig sparing
+              <span>
+                <input
+                  inputMode="numeric"
+                  value={monthlySaving}
+                  onChange={(event) => setMonthlySaving(event.target.value)}
+                  aria-label="Månedlig sparing"
+                />
+                <i>kr</i>
+              </span>
+            </label>
+            <label>
+              {basis === "history"
+                ? "Uten tilgjengelig historikk"
+                : "Forventet avkastning"}
+              <span>
+                <input
+                  inputMode="decimal"
+                  value={basis === "history" ? fallbackReturn : annualReturn}
+                  onChange={(event) =>
+                    basis === "history"
+                      ? setFallbackReturn(event.target.value)
+                      : setAnnualReturn(event.target.value)
+                  }
+                  aria-label={
+                    basis === "history"
+                      ? "Årlig avkastning for investeringer uten historikk"
+                      : "Forventet årlig avkastning"
+                  }
+                />
+                <i>%</i>
+              </span>
+              {basis === "history" ? (
+                <small>
+                  Brukes på {Math.round(100 - history.coveragePercent)} % av
+                  verdien
+                </small>
+              ) : null}
+            </label>
+          </div>
+
+          {basis === "history" ? (
+            <details className="forecast-source">
+              <summary>
+                Se historisk datagrunnlag ({history.matched.length})
+              </summary>
+              <div>
+                {history.matched.length ? (
+                  history.matched.map((fund) => (
+                    <p key={fund.name}>
+                      <span>
+                        <b>{fund.name}</b>
+                        <small>
+                          {fund.source} · per {fund.asOf} · etter fondsgebyr
+                        </small>
+                      </span>
+                      <strong>{formatRate(fund.annualReturn)}</strong>
+                    </p>
+                  ))
+                ) : (
+                  <p>
+                    <span>
+                      <b>Ingen fond har {historyPeriod}-årshistorikk ennå.</b>
+                      <small>
+                        Det manuelle reservetallet brukes i scenarioet.
+                      </small>
+                    </span>
+                  </p>
+                )}
+              </div>
+            </details>
+          ) : null}
+        </div>
+
+        <div className="forecast-result">
+          <div className="forecast-main">
+            <span>Estimert verdi om {years} år</span>
+            <strong>{money.format(expected)}</strong>
+            <small>
+              {money.format(currentValue)} i startverdi · {formatRate(rate)}{" "}
+              årlig
+            </small>
+          </div>
+          <div className="forecast-chart">
+            <div className="chart-scale">
+              <span>{compactMoney(chartMaximum)}</span>
+              <span>{compactMoney(chartMaximum / 2)}</span>
+              <span>0</span>
+            </div>
+            <svg
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+              role="img"
+              aria-label={`Modellert verdiutvikling over ${years} år`}
+            >
+              <line x1="0" y1="0" x2={chartWidth} y2="0" />
+              <line
+                x1="0"
+                y1={chartHeight / 2}
+                x2={chartWidth}
+                y2={chartHeight / 2}
+              />
+              <line x1="0" y1={chartHeight} x2={chartWidth} y2={chartHeight} />
+              <path
+                className="cautious-line"
+                d={buildProjectionPath(
+                  cautiousSeries.map((point) => point.value),
+                  chartWidth,
+                  chartHeight,
+                  chartMaximum,
+                )}
+              />
+              <path
+                className="strong-line"
+                d={buildProjectionPath(
+                  strongSeries.map((point) => point.value),
+                  chartWidth,
+                  chartHeight,
+                  chartMaximum,
+                )}
+              />
+              <path
+                className="selected-line"
+                d={buildProjectionPath(
+                  expectedSeries.map((point) => point.value),
+                  chartWidth,
+                  chartHeight,
+                  chartMaximum,
+                )}
+              />
+            </svg>
+            <div className="chart-axis">
+              <span>I dag</span>
+              <span>{years} år</span>
+            </div>
+          </div>
+          <div className="forecast-composition">
+            <span>
+              <small>Startverdi</small>
+              <b>{money.format(currentValue)}</b>
+            </span>
+            <span>
+              <small>Nye innskudd</small>
+              <b>{money.format(contributions)}</b>
+            </span>
+            <span>
+              <small>Modellert avkastning</small>
+              <b className={modeledReturn >= 0 ? "positive" : "negative"}>
+                {signedMoney(modeledReturn)}
+              </b>
+            </span>
+          </div>
+        </div>
       </div>
       <div className="forecast-range">
         <div>
           <span>Forsiktig</span>
           <b>{money.format(cautious)}</b>
-          <small>{formatRate(rate - 4)} årlig</small>
+          <small>{formatRate(cautiousRate)} årlig</small>
         </div>
         <div className="selected">
           <span>Valgt</span>
@@ -742,38 +1171,13 @@ function ForecastPanel({ currentValue }: { currentValue: number }) {
         <div>
           <span>Sterk</span>
           <b>{money.format(optimistic)}</b>
-          <small>{formatRate(rate + 4)} årlig</small>
+          <small>{formatRate(strongRate)} årlig</small>
         </div>
       </div>
-      <div className="forecast-inputs">
-        <label>
-          Forventet avkastning
-          <span>
-            <input
-              inputMode="decimal"
-              value={annualReturn}
-              onChange={(event) => setAnnualReturn(event.target.value)}
-              aria-label="Forventet årlig avkastning"
-            />
-            <i>%</i>
-          </span>
-        </label>
-        <label>
-          Månedlig sparing
-          <span>
-            <input
-              inputMode="numeric"
-              value={monthlySaving}
-              onChange={(event) => setMonthlySaving(event.target.value)}
-              aria-label="Månedlig sparing"
-            />
-            <i>kr</i>
-          </span>
-        </label>
-      </div>
       <p className="forecast-note">
-        <CircleHelp size={14} /> Estimatet er nominelt og tar ikke hensyn til
-        skatt, kostnader eller inflasjon.
+        <CircleHelp size={14} /> Historisk avkastning er ingen garanti for
+        fremtidig avkastning. Scenarioet er nominelt og før skatt,
+        plattformgebyr og inflasjon.
       </p>
     </section>
   );
@@ -849,11 +1253,13 @@ function HoldingRow({
   item,
   advanced,
   onEdit,
+  onBuy,
   onAccountChange,
 }: {
   item: Holding;
   advanced: boolean;
   onEdit: () => void;
+  onBuy: () => void;
   onAccountChange: (group: AccountGroup) => void;
 }) {
   const Icon = kindIcon[item.kind];
@@ -945,15 +1351,26 @@ function HoldingRow({
         </div>
       </div>
       {advanced ? (
-        <button
-          className="edit-holding"
-          onClick={onEdit}
-          aria-label={`Rediger ${item.name}`}
-        >
-          <Pencil size={14} />
-        </button>
+        <div className="row-actions">
+          <button
+            className="buy-holding"
+            onClick={onBuy}
+            aria-label={`Registrer kjøp i ${item.name}`}
+            title="Registrer ekstra kjøp"
+          >
+            <Plus size={14} />
+          </button>
+          <button
+            className="edit-holding"
+            onClick={onEdit}
+            aria-label={`Rediger ${item.name}`}
+            title="Rediger beholdning"
+          >
+            <Pencil size={14} />
+          </button>
+        </div>
       ) : (
-        <span className="locked-cell" aria-label="Visningsmodus">
+        <span className="locked-cell" role="img" aria-label="Visningsmodus">
           <LockKeyhole size={12} />
         </span>
       )}
@@ -1409,6 +1826,199 @@ function AddPanel({
   );
 }
 
+function BuyPanel({
+  item,
+  onClose,
+  onBuy,
+}: {
+  item: Holding;
+  onClose: () => void;
+  onBuy: (
+    purchase: Omit<
+      PortfolioEvent,
+      "id" | "type" | "holdingId" | "holdingName" | "accountGroup" | "createdAt"
+    >,
+  ) => void;
+}) {
+  const [entryMethod, setEntryMethod] = useState<"amount" | "units">("amount");
+  const [amount, setAmount] = useState("");
+  const [units, setUnits] = useState("");
+  const [price, setPrice] = useState(String(item.price));
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState("");
+  const [error, setError] = useState("");
+  const purchasePrice = Math.max(0, toNumber(price));
+  const purchaseUnits =
+    entryMethod === "amount"
+      ? purchasePrice
+        ? toNumber(amount) / purchasePrice
+        : 0
+      : Math.max(0, toNumber(units));
+  const purchaseAmount =
+    entryMethod === "amount"
+      ? Math.max(0, toNumber(amount))
+      : purchaseUnits * purchasePrice;
+  const nextUnits = item.units + purchaseUnits;
+  const nextCost = item.cost + purchaseAmount;
+  const averageCost = nextUnits ? nextCost / nextUnits : 0;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!purchasePrice || !purchaseUnits || !purchaseAmount || !date) {
+      setError("Fyll inn kjøpssum eller andeler, kurs og kjøpsdato.");
+      return;
+    }
+    onBuy({
+      date,
+      units: purchaseUnits,
+      price: purchasePrice,
+      amount: purchaseAmount,
+      note: note.trim() || undefined,
+    });
+  }
+
+  return (
+    <div
+      className="panel-layer"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Registrer kjøp i ${item.name}`}
+    >
+      <button className="panel-scrim" onClick={onClose} aria-label="Lukk" />
+      <aside className="panel buy-panel">
+        <div className="panel-head">
+          <div>
+            <span>Ny aktivitet</span>
+            <h2>Registrer ekstra kjøp</h2>
+          </div>
+          <button className="close" onClick={onClose} aria-label="Lukk panelet">
+            <X />
+          </button>
+        </div>
+        <div className="edit-instrument">
+          <div className={`asset-icon ${item.kind}`}>
+            {item.kind === "fund" ? (
+              <Landmark size={17} />
+            ) : item.kind === "stock" ? (
+              <WalletCards size={17} />
+            ) : (
+              <Coins size={17} />
+            )}
+          </div>
+          <span>
+            <b>{item.name}</b>
+            <small>
+              {number.format(item.units)} andeler · {money.format(item.cost)}{" "}
+              investert
+            </small>
+          </span>
+        </div>
+        <form onSubmit={submit}>
+          <fieldset className="entry-choice">
+            <legend>Hva vil du skrive inn?</legend>
+            <button
+              type="button"
+              className={entryMethod === "amount" ? "selected" : ""}
+              onClick={() => setEntryMethod("amount")}
+            >
+              Kjøpssum
+            </button>
+            <button
+              type="button"
+              className={entryMethod === "units" ? "selected" : ""}
+              onClick={() => setEntryMethod("units")}
+            >
+              Antall andeler
+            </button>
+          </fieldset>
+          <div className="two-fields">
+            {entryMethod === "amount" ? (
+              <label>
+                Kjøpssum
+                <input
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="For eksempel 10 000"
+                  autoFocus
+                />
+              </label>
+            ) : (
+              <label>
+                Antall andeler
+                <input
+                  inputMode="decimal"
+                  value={units}
+                  onChange={(event) => setUnits(event.target.value)}
+                  placeholder="For eksempel 4,25"
+                  autoFocus
+                />
+              </label>
+            )}
+            <label>
+              Kurs ved kjøp
+              <input
+                inputMode="decimal"
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="two-fields">
+            <label>
+              Kjøpsdato
+              <input
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            </label>
+            <label>
+              Notat <small>valgfritt</small>
+              <input
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="For eksempel månedssparing"
+              />
+            </label>
+          </div>
+          {purchaseUnits > 0 && purchaseAmount > 0 ? (
+            <div className="purchase-summary">
+              <p>
+                <span>Kjøp</span>
+                <b>{money.format(purchaseAmount)}</b>
+                <small>{number.format(purchaseUnits)} nye andeler</small>
+              </p>
+              <p>
+                <span>Ny beholdning</span>
+                <b>{number.format(nextUnits)} andeler</b>
+                <small>{money.format(nextCost)} totalt investert</small>
+              </p>
+              <p>
+                <span>Ny snittpris</span>
+                <b>{money.format(averageCost)}</b>
+                <small>per andel</small>
+              </p>
+            </div>
+          ) : null}
+          {error ? (
+            <p className="form-error">
+              <CircleHelp size={15} /> {error}
+            </p>
+          ) : null}
+          <p className="purchase-note">
+            <LockKeyhole size={13} /> Kjøpet oppdaterer andeler og inngangsverdi
+            og legges i aktivitetsloggen.
+          </p>
+          <button className="submit" type="submit">
+            <ShoppingCart size={16} /> Registrer kjøp
+          </button>
+        </form>
+      </aside>
+    </div>
+  );
+}
+
 function EditPanel({
   item,
   onClose,
@@ -1800,21 +2410,14 @@ function signedPercent(value: number) {
 function formatRate(value: number) {
   return `${value.toLocaleString("nb-NO", { maximumFractionDigits: 1 })} %`;
 }
-function projectValue(
-  currentValue: number,
-  monthlySaving: number,
-  annualReturn: number,
-  years: number,
-) {
-  const months = years * 12;
-  const monthlyRate =
-    Math.pow(1 + Math.max(-0.99, annualReturn / 100), 1 / 12) - 1;
-  const growth = Math.pow(1 + monthlyRate, months);
-  const contributions =
-    Math.abs(monthlyRate) < 0.000001
-      ? monthlySaving * months
-      : (monthlySaving * (growth - 1)) / monthlyRate;
-  return Math.max(0, currentValue * growth + contributions);
+function compactMoney(value: number) {
+  return new Intl.NumberFormat("nb-NO", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+function formatEventDate(value: string) {
+  return shortDate.format(new Date(`${value}T12:00:00.000Z`));
 }
 function toNumber(value: string) {
   const compact = value.replace(/\s/g, "");
