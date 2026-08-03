@@ -1,4 +1,5 @@
 import type { AssetKind } from "./types";
+import { nordnetFunds } from "./funds.generated";
 
 export type Instrument = {
   name: string;
@@ -20,6 +21,7 @@ const funds: Instrument[] = [
   { name: "DNB Global Indeks A", symbol: "DNB-GLOBAL-A", kind: "fund", market: "Global indeks", tags: ["dnb", "global", "indeks"] },
   { name: "DNB Norge Indeks A", symbol: "DNB-NORGE-A", kind: "fund", market: "Norge indeks", tags: ["dnb", "norge", "indeks"] },
   { name: "DNB Teknologi A", symbol: "NO0010337678", quoteSymbol: "NO0010337678", kind: "fund", market: "Teknologi", tags: ["dnb", "teknologi", "aktiv"] },
+  { name: "DNB Fund – Disruptive Opportunities Retail A (N) NOK", symbol: "LU2075955943", quoteSymbol: "LU2075955943", kind: "fund", market: "Global teknologi · aktiv", tags: ["dnb", "fund", "disruptive", "opportunities", "retail a", "n nok", "teknologi", "innovasjon", "aktiv"] },
   { name: "DNB Norden Indeks A", symbol: "DNB-NORDEN-A", kind: "fund", market: "Norden indeks", tags: ["dnb", "norden", "indeks"] },
   { name: "DNB Klima Indeks A", symbol: "DNB-KLIMA-A", kind: "fund", market: "Global klimaindeks", tags: ["dnb", "klima", "indeks"] },
   { name: "Storebrand Indeks – Alle Markeder N", symbol: "STOREBRAND-ALLE-N", kind: "fund", market: "Hele verden", tags: ["storebrand", "global", "indeks"] },
@@ -75,7 +77,8 @@ const crypto: Instrument[] = [
   { name: "Cardano", symbol: "ADA", kind: "crypto", market: "Krypto", tags: ["cardano"] },
 ];
 
-export const instrumentCatalog = [...funds, ...stocks, ...crypto];
+export const instrumentCatalog = [...funds, ...nordnetFunds, ...stocks, ...crypto]
+  .filter((item, index, all) => all.findIndex((candidate) => candidate.kind === item.kind && candidate.symbol === item.symbol) === index);
 
 export function searchInstruments(kind: AssetKind, query: string) {
   const needle = query.trim().toLocaleLowerCase("nb-NO");
