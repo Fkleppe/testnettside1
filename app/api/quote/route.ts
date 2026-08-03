@@ -32,16 +32,43 @@ export async function GET(request: NextRequest) {
     }
 
     const apiKey = process.env.TWELVE_DATA_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "Automatisk aksje- og fondskurs krever TWELVE_DATA_API_KEY. Du kan fortsatt registrere manuelt." }, { status: 503 });
+    if (apiKey) {
+      const response = await fetch(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`, { next: { revalidate: kind === "fund" ? 3600 : 60 } });
+      const data = await response.json();
+      if (response.ok && data.status !== "error" && data.close) {
+        return NextResponse.json({
+          symbol: data.symbol ?? symbol, name: data.name, price: Number(data.close),
+          changePercent: Number(data.percent_change ?? 0), currency: data.currency ?? "NOK",
+          source: "Twelve Data", updatedAt: data.datetime ? new Date(data.datetime).toISOString() : new Date().toISOString(),
+        });
+      }
     }
-    const response = await fetch(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`, { next: { revalidate: kind === "fund" ? 3600 : 60 } });
-    const data = await response.json();
-    if (!response.ok || data.status === "error" || !data.close) throw new Error(data.message || "Fant ikke instrumentet.");
+
+    if (kind === "fund") {
+      return NextResponse.json({ error: "Automatisk fondskurs er ikke tilgjengelig for dette fondet ennå. Velg manuell og skriv inn siste NAV." }, { status: 503 });
+    }
+
+    const chartResponse = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`, {
+      headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 60 },
+    });
+    const chart = await chartResponse.json();
+    const result = chart?.chart?.result?.[0];
+    if (!chartResponse.ok || !result?.meta?.regularMarketPrice) throw new Error("Fant ikke aksjekursen.");
+    const originalCurrency = result.meta.currency ?? "NOK";
+    let nokRate = 1;
+    if (originalCurrency !== "NOK") {
+      const fxResponse = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(`${originalCurrency}NOK=X`)}?interval=1d&range=5d`, {
+        headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 300 },
+      });
+      const fx = await fxResponse.json();
+      nokRate = Number(fx?.chart?.result?.[0]?.meta?.regularMarketPrice ?? 1);
+    }
+    const current = Number(result.meta.regularMarketPrice);
+    const previous = Number(result.meta.chartPreviousClose ?? result.meta.previousClose ?? current);
     return NextResponse.json({
-      symbol: data.symbol ?? symbol, name: data.name, price: Number(data.close),
-      changePercent: Number(data.percent_change ?? 0), currency: data.currency ?? "NOK",
-      source: "Twelve Data", updatedAt: data.datetime ? new Date(data.datetime).toISOString() : new Date().toISOString(),
+      symbol, name: result.meta.longName ?? result.meta.shortName, price: current * nokRate,
+      nativePrice: current, changePercent: previous ? ((current - previous) / previous) * 100 : 0,
+      currency: "NOK", nativeCurrency: originalCurrency, source: "Markedsdata", updatedAt: new Date((result.meta.regularMarketTime ?? Date.now() / 1000) * 1000).toISOString(),
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Ukjent feil." }, { status: 502 });
