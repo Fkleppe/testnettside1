@@ -1,6 +1,15 @@
 export type AssetKind = "fund" | "stock" | "crypto";
 export type PriceMode = "automatic" | "manual";
 export type AccountGroup = "private" | "business" | "family" | "pension";
+export type QuoteStatus =
+  | "official_current"
+  | "awaiting_market_close"
+  | "within_publication_window"
+  | "official_previous"
+  | "source_late"
+  | "estimated_intraday"
+  | "manual_override"
+  | "source_error";
 
 export type Holding = {
   id: string;
@@ -12,11 +21,16 @@ export type Holding = {
   units: number;
   cost: number;
   price: number;
+  previousPrice?: number;
   dailyPercent: number | null;
+  changePeriod?: "day" | "24h";
   currency: string;
   source: string;
   updatedAt: string;
+  priceDate?: string;
+  quoteStatus?: QuoteStatus;
   priceAsOf?: string;
+  /** @deprecated Kept only to migrate older data stored in the browser. */
   delayed?: boolean;
   accountGroup?: AccountGroup;
 };
