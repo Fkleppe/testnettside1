@@ -16,6 +16,7 @@ export type Holding = {
   currency: string;
   source: string;
   updatedAt: string;
+  priceAsOf?: string;
   delayed?: boolean;
   accountGroup?: AccountGroup;
 };
