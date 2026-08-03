@@ -7,6 +7,14 @@ const cryptoIds: Record<string, string> = {
   SOL: "solana", SOLANA: "solana", ADA: "cardano", CARDANO: "cardano",
 };
 
+const officialFundPages: Record<string, string> = {
+  NO0010337678: "https://www.dnb.no/sparing/fond/fond-liste/d/dnb-teknologi-a-NO0010337678",
+};
+
+function parseNorwegianNumber(value: string) {
+  return Number(value.replace(/[^\d,.-]/g, "").replace(",", "."));
+}
+
 export async function GET(request: NextRequest) {
   const symbol = request.nextUrl.searchParams.get("symbol")?.trim().toUpperCase();
   const kind = request.nextUrl.searchParams.get("kind") as AssetKind | null;
@@ -29,6 +37,23 @@ export async function GET(request: NextRequest) {
         symbol, price: data[id].nok, changePercent: data[id].nok_24h_change ?? 0,
         currency: "NOK", source: "CoinGecko", updatedAt: data[id].last_updated_at ? new Date(data[id].last_updated_at * 1000).toISOString() : new Date().toISOString(),
       });
+    }
+
+    const officialFundPage = kind === "fund" ? officialFundPages[symbol] : undefined;
+    if (officialFundPage) {
+      const response = await fetch(officialFundPage, {
+        headers: { "User-Agent": "MinSparing/1.0 (+https://minsparing.vercel.app)" },
+        next: { revalidate: 3600 },
+      });
+      const html = await response.text();
+      const navMatch = html.match(/data-testid="fund-properties-nav-price"[\s\S]{0,4000}?dnb-number-format__visible"[^>]*>([^<]+)<\/span>[\s\S]{0,1200}?FundProperties_fundInfoText[^>]*>([^<]+)<\/span>/);
+      const price = navMatch ? parseNorwegianNumber(navMatch[1]) : 0;
+      if (response.ok && price > 0) {
+        return NextResponse.json({
+          symbol, name: "DNB Teknologi A", price, changePercent: 0, currency: "NOK",
+          source: "DNB · offisiell NAV", asOf: navMatch?.[2], updatedAt: new Date().toISOString(), delayed: true,
+        });
+      }
     }
 
     const apiKey = process.env.TWELVE_DATA_API_KEY;
