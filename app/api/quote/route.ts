@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       const price = navMatch ? parseNorwegianNumber(navMatch[1]) : 0;
       if (response.ok && price > 0) {
         return NextResponse.json({
-          symbol, name: "DNB Teknologi A", price, changePercent: 0, currency: "NOK",
+          symbol, name: "DNB Teknologi A", price, changePercent: null, currency: "NOK",
           source: "DNB · offisiell NAV", asOf: navMatch?.[2], updatedAt: new Date().toISOString(), delayed: true,
         });
       }
