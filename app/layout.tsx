@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://minsparing.vercel.app"),
   title: "Min Sparing — hele sparingen på ett sted",
   description: "Samle fond, aksjer og krypto. Se hva som er oppdatert, estimert og registrert manuelt.",
 };
