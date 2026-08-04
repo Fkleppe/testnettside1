@@ -1,3 +1,4 @@
+import { mergeSnapshots, type DailySnapshot } from "./history";
 import type { PortfolioData } from "./storage";
 
 export type RemoteSnapshot = {
@@ -5,16 +6,19 @@ export type RemoteSnapshot = {
   savedAt: string | null;
   holdings: PortfolioData["holdings"];
   events: PortfolioData["events"];
+  snapshots: DailySnapshot[];
 };
 
 export type MergeDecision =
-  | { action: "keep-local"; pushLocal: boolean }
+  | { action: "keep-local"; pushLocal: boolean; snapshots: DailySnapshot[] }
   | { action: "take-remote"; data: PortfolioData; backupLocal: boolean };
 
 /**
  * Tapsfri flettepolicy: nyeste savedAt vinner i sin helhet, men en ikke-tom
  * taper skal alltid sikkerhetskopieres lokalt, og en tom side kan aldri
- * overskrive en ikke-tom.
+ * overskrive en ikke-tom. Historikk-snapshots unionsflettes alltid per dato
+ * uansett hvilken side som vinner, så ingen enhet mister dager den alene har
+ * observert.
  */
 export function decideMerge(
   local: { savedAt: string | null; data: PortfolioData },
@@ -22,13 +26,18 @@ export function decideMerge(
 ): MergeDecision {
   const localEmpty = local.data.holdings.length === 0;
   const remoteEmpty = !remote?.exists || remote.holdings.length === 0;
+  const snapshots = mergeSnapshots(
+    local.data.snapshots,
+    remote?.exists ? remote.snapshots : [],
+  );
 
   if (remoteEmpty) {
-    return { action: "keep-local", pushLocal: !localEmpty };
+    return { action: "keep-local", pushLocal: !localEmpty, snapshots };
   }
   const remoteData: PortfolioData = {
     holdings: remote!.holdings,
     events: remote!.events,
+    snapshots,
   };
   if (localEmpty) {
     return { action: "take-remote", data: remoteData, backupLocal: false };
@@ -39,7 +48,7 @@ export function decideMerge(
   if (remoteNewer) {
     return { action: "take-remote", data: remoteData, backupLocal: true };
   }
-  return { action: "keep-local", pushLocal: true };
+  return { action: "keep-local", pushLocal: true, snapshots };
 }
 
 export async function fetchRemote(): Promise<RemoteSnapshot | null> {
@@ -48,13 +57,20 @@ export async function fetchRemote(): Promise<RemoteSnapshot | null> {
     if (!response.ok) return null;
     const json = await response.json();
     if (!json.exists) {
-      return { exists: false, savedAt: null, holdings: [], events: [] };
+      return {
+        exists: false,
+        savedAt: null,
+        holdings: [],
+        events: [],
+        snapshots: [],
+      };
     }
     return {
       exists: true,
       savedAt: json.savedAt ?? null,
       holdings: Array.isArray(json.holdings) ? json.holdings : [],
       events: Array.isArray(json.events) ? json.events : [],
+      snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
     };
   } catch {
     return null;

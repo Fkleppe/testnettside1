@@ -47,13 +47,51 @@ describe("loadPortfolio", () => {
 
   it("round-trips saved data", () => {
     const store = fakeStorage();
-    savePortfolio(store, { holdings: [holding], events: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
       lastSeenSavedAt: null,
     });
     const result = loadPortfolio(store);
     if (result.status !== "ok") throw new Error(result.status);
     expect(result.data.holdings).toHaveLength(1);
     expect(result.data.holdings[0].name).toBe(holding.name);
+  });
+
+  it("round-trips historikk-snapshots og normaliserer manglende groups", () => {
+    const store = fakeStorage();
+    const snapshot = {
+      date: "2026-08-04",
+      capturedAt: "2026-08-04T18:00:00.000Z",
+      value: 1200,
+      cost: 1000,
+    };
+    savePortfolio(
+      store,
+      { holdings: [holding], events: [], snapshots: [snapshot as never] },
+      { lastSeenSavedAt: null },
+    );
+    const result = loadPortfolio(store);
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.data.snapshots).toHaveLength(1);
+    expect(result.data.snapshots[0].value).toBe(1200);
+    expect(result.data.snapshots[0].groups).toEqual({});
+  });
+
+  it("dropper ugyldige snapshots uten å gate beholdningene", () => {
+    const store = fakeStorage();
+    store.setItem(
+      STORAGE_KEYS.DATA_KEY,
+      JSON.stringify({
+        v: 2,
+        savedAt: "2026-08-04T18:00:00.000Z",
+        holdings: [holding],
+        events: [],
+        snapshots: [{ date: "ikke-en-dato", value: "tull" }],
+      }),
+    );
+    const result = loadPortfolio(store);
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.data.holdings).toHaveLength(1);
+    expect(result.data.snapshots).toHaveLength(0);
   });
 
   it("recovers legacy v1 keys", () => {
@@ -96,16 +134,16 @@ describe("loadPortfolio", () => {
 describe("savePortfolio", () => {
   it("backs up a foreign write before overwriting it", () => {
     const store = fakeStorage();
-    const mine = savePortfolio(store, { holdings: [holding], events: [] }, {
+    const mine = savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T08:00:00Z"),
     });
     const foreign = { ...holding, id: "other-tab", name: "Annen fane" };
-    savePortfolio(store, { holdings: [foreign], events: [] }, {
+    savePortfolio(store, { holdings: [foreign], events: [], snapshots: [] }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T09:00:00Z"),
     });
-    savePortfolio(store, { holdings: [holding], events: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
       lastSeenSavedAt: mine,
       now: new Date("2026-08-04T10:00:00Z"),
     });
@@ -118,15 +156,15 @@ describe("savePortfolio", () => {
 
   it("writes rolling backups at most every six hours", () => {
     const store = fakeStorage();
-    savePortfolio(store, { holdings: [holding], events: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T08:00:00Z"),
     });
-    savePortfolio(store, { holdings: [holding], events: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T09:00:00Z"),
     });
-    savePortfolio(store, { holdings: [holding], events: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T15:00:00Z"),
     });
@@ -135,7 +173,7 @@ describe("savePortfolio", () => {
 
   it("never writes backups of an empty portfolio", () => {
     const store = fakeStorage();
-    savePortfolio(store, { holdings: [], events: [] }, {
+    savePortfolio(store, { holdings: [], events: [], snapshots: [] }, {
       lastSeenSavedAt: null,
     });
     expect(listBackups(store)).toHaveLength(0);
@@ -145,7 +183,7 @@ describe("savePortfolio", () => {
 describe("backup restore and import", () => {
   it("restores a backup", () => {
     const store = fakeStorage();
-    savePortfolio(store, { holdings: [holding], events: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
       lastSeenSavedAt: null,
     });
     const [backup] = listBackups(store);
@@ -154,7 +192,7 @@ describe("backup restore and import", () => {
   });
 
   it("accepts exported files and rejects junk", () => {
-    const exported = exportPortfolioJson({ holdings: [holding], events: [] });
+    const exported = exportPortfolioJson({ holdings: [holding], events: [], snapshots: [] });
     const ok = parseImportedJson(exported);
     expect(ok.ok).toBe(true);
     expect(parseImportedJson("ikke json").ok).toBe(false);

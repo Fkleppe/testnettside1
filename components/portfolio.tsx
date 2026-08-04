@@ -40,6 +40,13 @@ import { useSession } from "next-auth/react";
 import { searchInstruments, type Instrument } from "@/lib/catalog";
 import { AccountButton } from "@/components/account-button";
 import { DataSafetyPanel } from "@/components/data-safety";
+import { EquityHistory } from "@/components/equity-history";
+import {
+  mergeSnapshots,
+  snapshotPoints,
+  upsertDailySnapshot,
+  type DailySnapshot,
+} from "@/lib/history";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
 import {
@@ -137,6 +144,7 @@ type DataState = "loading" | "user" | "demo" | "corrupt";
 export function Portfolio() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [events, setEvents] = useState<PortfolioEvent[]>([]);
+  const [snapshots, setSnapshots] = useState<DailySnapshot[]>([]);
   const [dataState, setDataState] = useState<DataState>("loading");
   const [corruptKey, setCorruptKey] = useState<string | null>(null);
   const lastSeenSavedAt = useRef<string | null>(null);
@@ -154,6 +162,7 @@ export function Portfolio() {
         const migrated = result.data.holdings.map(migrateHolding);
         setHoldings(migrated);
         setEvents(result.data.events);
+        setSnapshots(result.data.snapshots);
         lastSeenSavedAt.current = result.savedAt;
         setDataState("user");
         void refreshOfficialFunds(migrated).then(setHoldings);
@@ -170,10 +179,21 @@ export function Portfolio() {
     if (dataState !== "user") return;
     lastSeenSavedAt.current = savePortfolio(
       localStorage,
-      { holdings, events },
+      { holdings, events, snapshots },
       { lastSeenSavedAt: lastSeenSavedAt.current },
     );
-  }, [holdings, events, dataState]);
+  }, [holdings, events, snapshots, dataState]);
+  /** Ett historikkpunkt per dag; dagens punkt følger siste observerte verdi.
+   *  upsertDailySnapshot er referansestabil uten endring — ingen løkke. */
+  useEffect(() => {
+    if (dataState !== "user" || holdings.length === 0) return;
+    const timer = window.setTimeout(() => {
+      setSnapshots((current) =>
+        upsertDailySnapshot(current, holdings, new Date()),
+      );
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [holdings, dataState]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== STORAGE_KEYS.DATA_KEY || event.newValue === null) {
@@ -184,6 +204,7 @@ export function Portfolio() {
         lastSeenSavedAt.current = result.savedAt;
         setHoldings(result.data.holdings.map(migrateHolding));
         setEvents(result.data.events);
+        setSnapshots(result.data.snapshots);
         setDataState("user");
       }
     };
@@ -199,11 +220,15 @@ export function Portfolio() {
     setCorruptKey(null);
     setHoldings(data.holdings.map(migrateHolding));
     setEvents(data.events);
+    // Historikk unionsflettes i stedet for å erstattes — dager samlet lokalt
+    // skal overleve import/gjenoppretting.
+    setSnapshots((current) => mergeSnapshots(current, data.snapshots));
   };
   const startFresh = () => {
     claimOwnership();
     setHoldings([]);
     setEvents([]);
+    setSnapshots([]);
   };
 
   const { status: authStatus } = useSession();
@@ -219,7 +244,9 @@ export function Portfolio() {
     }
     initialSyncDone.current = true;
     const localData: PortfolioData =
-      dataState === "user" ? { holdings, events } : { holdings: [], events: [] };
+      dataState === "user"
+        ? { holdings, events, snapshots }
+        : { holdings: [], events: [], snapshots: [] };
     void (async () => {
       setSyncState("checking");
       const remote = await fetchRemote();
@@ -233,16 +260,19 @@ export function Portfolio() {
       );
       if (decision.action === "take-remote") {
         replaceAll(decision.data);
-      } else if (decision.pushLocal) {
-        await pushRemote(
-          lastSeenSavedAt.current ?? new Date().toISOString(),
-          localData,
-        );
+      } else {
+        setSnapshots((current) => mergeSnapshots(current, decision.snapshots));
+        if (decision.pushLocal) {
+          await pushRemote(lastSeenSavedAt.current ?? new Date().toISOString(), {
+            ...localData,
+            snapshots: decision.snapshots,
+          });
+        }
       }
       setSyncState("synced");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, dataState, holdings, events]);
+  }, [authStatus, dataState, holdings, events, snapshots]);
   useEffect(() => {
     if (
       authStatus !== "authenticated" ||
@@ -254,15 +284,15 @@ export function Portfolio() {
     const timer = setTimeout(() => {
       void pushRemote(
         lastSeenSavedAt.current ?? new Date().toISOString(),
-        { holdings, events },
+        { holdings, events, snapshots },
       ).then((ok) => setSyncState(ok ? "synced" : "error"));
     }, 2000);
     return () => clearTimeout(timer);
-  }, [holdings, events, authStatus, dataState]);
+  }, [holdings, events, snapshots, authStatus, dataState]);
   useEffect(() => {
     if (authStatus === "unauthenticated") {
       initialSyncDone.current = false;
-      setSyncState("off");
+      queueMicrotask(() => setSyncState("off"));
     }
   }, [authStatus]);
 
@@ -497,6 +527,7 @@ export function Portfolio() {
               holdings={visibleHoldings}
               totals={totals}
               activeAccount={activeAccount}
+              snapshots={dataState === "user" ? snapshots : []}
             />
             <section className="holdings-card" id="beholdning">
               <div className="card-title-row">
@@ -577,7 +608,7 @@ export function Portfolio() {
             <TaxPanel holdings={visibleHoldings} />
             <ActivityPanel events={events} activeAccount={activeAccount} />
             <DataSafetyPanel
-              data={{ holdings, events }}
+              data={{ holdings, events, snapshots }}
               isDemo={dataState === "demo"}
               corruptKey={corruptKey}
               onReplace={replaceAll}
@@ -733,11 +764,17 @@ function EquityPanel({
   holdings,
   totals,
   activeAccount,
+  snapshots,
 }: {
   holdings: Holding[];
   totals: ReturnType<typeof calculateTotals>;
   activeAccount: AccountFilter;
+  snapshots: DailySnapshot[];
 }) {
+  const historyPoints = useMemo(
+    () => snapshotPoints(snapshots, activeAccount),
+    [snapshots, activeAccount],
+  );
   const states = holdings.map((item) => getQuoteState(item));
   const withinWindow = states.filter(
     (state) =>
@@ -772,23 +809,7 @@ function EquityPanel({
           </b>
         </div>
       </div>
-      <div className="history-empty">
-        <div className="history-grid" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </div>
-        <div>
-          <Clock3 size={20} />
-          <span>
-            <b>Historikk bygges fra neste dagsoppdatering</b>
-            <small>
-              Vi viser ikke en tidsserie før porteføljen har ekte daglige
-              snapshots.
-            </small>
-          </span>
-        </div>
-      </div>
+      <EquityHistory points={historyPoints} />
       <div className="range-row">
         <div className="selected">
           <span>I dag</span>

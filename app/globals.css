@@ -807,6 +807,140 @@ h3 {
   font-size: 0.625rem;
   line-height: 1.4;
 }
+.equity-history {
+  border-top: 1px solid var(--line-soft);
+}
+.history-ranges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px 4px;
+}
+.history-ranges [role="tablist"] {
+  display: flex;
+  gap: 4px;
+}
+.history-ranges button {
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  padding: 5px 10px;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.history-ranges button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.history-ranges button.selected {
+  background: var(--surface-active);
+  color: var(--text);
+}
+.history-ranges > b {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.history-chart {
+  position: relative;
+  height: 188px;
+  margin: 2px 0 8px;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.history-chart > svg {
+  position: absolute;
+  inset: 6px 0 6px;
+  width: 100%;
+  height: calc(100% - 12px);
+  display: block;
+}
+.history-chart .history-grid {
+  inset: 14px 0 14px;
+}
+.axis-label {
+  position: absolute;
+  right: 8px;
+  z-index: 1;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--surface) 78%, transparent);
+  padding: 1px 5px;
+  color: var(--muted);
+  font-size: 0.625rem;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.axis-label.max {
+  top: 4px;
+}
+.axis-label.min {
+  bottom: 4px;
+}
+.history-crosshair {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+.history-dot {
+  position: absolute;
+  z-index: 1;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.history-tooltip {
+  position: absolute;
+  top: 10px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--surface) 96%, transparent);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+  padding: 8px 11px;
+  transform: translateX(12px);
+  pointer-events: none;
+}
+.history-tooltip.flip {
+  transform: translateX(calc(-100% - 12px));
+}
+.history-tooltip small {
+  color: var(--muted);
+  font-size: 0.625rem;
+  line-height: 1.4;
+}
+.history-tooltip b {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+.history-tooltip > span {
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+.history-range-note {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 0 24px;
+  text-align: center;
+}
+.history-range-note small {
+  color: var(--muted);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
 .range-row {
   height: 62px;
   display: grid;
@@ -2528,6 +2662,20 @@ footer small {
   }
   .history-empty small {
     line-height: 1.35;
+  }
+  .history-ranges {
+    flex-wrap: wrap;
+    padding: 10px 12px 4px;
+  }
+  .history-ranges [role="tablist"] {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .history-ranges > b {
+    margin-left: 2px;
+  }
+  .history-chart {
+    height: 160px;
   }
   .range-row {
     grid-template-columns: 1fr 1fr;

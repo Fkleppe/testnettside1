@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DailySnapshot } from "./history";
 import type { Holding, PortfolioEvent } from "./types";
 
 const DATA_KEY = "min-sparing-data-v2";
@@ -50,16 +51,36 @@ const eventSchema = z
   })
   .passthrough();
 
+const snapshotSchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    capturedAt: z.string(),
+    value: z.number().finite(),
+    cost: z.number().finite(),
+    groups: z
+      .record(
+        z.string(),
+        z.object({
+          value: z.number().finite(),
+          cost: z.number().finite(),
+        }),
+      )
+      .optional(),
+  })
+  .passthrough();
+
 const envelopeSchema = z.object({
   v: z.literal(2),
   savedAt: z.string(),
   holdings: z.array(z.unknown()),
   events: z.array(z.unknown()),
+  snapshots: z.array(z.unknown()).optional(),
 });
 
 export type PortfolioData = {
   holdings: Holding[];
   events: PortfolioEvent[];
+  snapshots: DailySnapshot[];
 };
 
 export type LoadResult =
@@ -106,6 +127,20 @@ function salvageItems<T>(
   return { valid, dropped };
 }
 
+/** Ugyldige snapshots droppes stille — de er avledet data og gater aldri
+ *  korrupt-status slik beholdninger gjør. Manglende groups normaliseres. */
+function salvageSnapshots(rawItems: unknown[] | undefined): DailySnapshot[] {
+  if (!rawItems) return [];
+  const valid: DailySnapshot[] = [];
+  for (const item of rawItems) {
+    const parsed = snapshotSchema.safeParse(item);
+    if (parsed.success) {
+      valid.push({ groups: {}, ...parsed.data } as DailySnapshot);
+    }
+  }
+  return valid;
+}
+
 function preserveCorrupt(store: StorageLike, raw: string, now: Date) {
   const corruptKey = `${CORRUPT_PREFIX}${now.toISOString()}`;
   try {
@@ -138,7 +173,11 @@ export function loadPortfolio(
       }
       return {
         status: "ok",
-        data: { holdings: holdings.valid, events: events.valid },
+        data: {
+          holdings: holdings.valid,
+          events: events.valid,
+          snapshots: salvageSnapshots(envelope.snapshots),
+        },
         savedAt: envelope.savedAt,
         droppedItems: holdings.dropped + events.dropped,
       };
@@ -173,7 +212,7 @@ export function loadPortfolio(
       }
       return {
         status: "recovered-legacy",
-        data: { holdings: holdings.valid, events },
+        data: { holdings: holdings.valid, events, snapshots: [] },
         savedAt: null,
         droppedItems: holdings.dropped,
       };
@@ -294,7 +333,11 @@ export function restoreBackup(
     const holdings = salvageItems<Holding>(envelope.holdings, holdingSchema);
     const events = salvageItems<PortfolioEvent>(envelope.events, eventSchema);
     if (holdings.valid.length === 0 && envelope.holdings.length > 0) return null;
-    return { holdings: holdings.valid, events: events.valid };
+    return {
+      holdings: holdings.valid,
+      events: events.valid,
+      snapshots: salvageSnapshots(envelope.snapshots),
+    };
   } catch {
     return null;
   }
@@ -311,6 +354,7 @@ export function exportPortfolioJson(data: PortfolioData, now: Date = new Date())
 const importSchema = z.object({
   holdings: z.array(z.unknown()),
   events: z.array(z.unknown()).optional(),
+  snapshots: z.array(z.unknown()).optional(),
 });
 
 export type ImportResult =
@@ -340,7 +384,11 @@ export function parseImportedJson(text: string): ImportResult {
   }
   return {
     ok: true,
-    data: { holdings: holdings.valid, events: events.valid },
+    data: {
+      holdings: holdings.valid,
+      events: events.valid,
+      snapshots: salvageSnapshots(root.data.snapshots),
+    },
     droppedItems: holdings.dropped + events.dropped,
   };
 }
@@ -360,7 +408,11 @@ export function validatePortfolioData(input: unknown):
   }
   return {
     ok: true,
-    data: { holdings: holdings.valid, events: events.valid },
+    data: {
+      holdings: holdings.valid,
+      events: events.valid,
+      snapshots: salvageSnapshots(root.data.snapshots),
+    },
     droppedItems: holdings.dropped + events.dropped,
   };
 }

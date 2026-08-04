@@ -13,6 +13,7 @@ const putSchema = z.object({
   savedAt: z.string().min(1),
   holdings: z.array(z.unknown()),
   events: z.array(z.unknown()),
+  snapshots: z.array(z.unknown()).optional(),
 });
 
 function userPrefix(userId: string) {
@@ -53,6 +54,7 @@ export async function GET() {
       savedAt: typeof decrypted.savedAt === "string" ? decrypted.savedAt : null,
       holdings: validated.data.holdings,
       events: validated.data.events,
+      snapshots: validated.data.snapshots,
     });
   } catch (error) {
     console.error("Portfolio GET failed:", error);
