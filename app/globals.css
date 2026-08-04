@@ -2812,3 +2812,67 @@ footer small {
   font-size: 0.6875rem;
   line-height: 1.5;
 }
+
+.account-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 7px 13px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.account-button:hover {
+  background: var(--surface-hover);
+}
+.account-button img {
+  border-radius: 50%;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 var(--space-4) var(--space-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--surface-hover);
+  padding: var(--space-2) var(--space-3);
+  color: var(--muted);
+}
+.sync-status p {
+  margin: 0;
+  display: grid;
+  gap: 1px;
+}
+.sync-status b {
+  color: var(--text);
+  font-size: 0.75rem;
+}
+.sync-status span {
+  font-size: 0.6875rem;
+}
+.sync-synced {
+  border-color: color-mix(in oklch, var(--positive) 35%, var(--line));
+}
+.sync-synced > svg {
+  color: var(--positive);
+}
+.sync-error {
+  border-color: color-mix(in oklch, var(--negative) 35%, var(--line));
+}
+.sync-error > svg {
+  color: var(--negative);
+}
+.sync-checking > svg {
+  animation: sync-spin 1.2s linear infinite;
+}
+@keyframes sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

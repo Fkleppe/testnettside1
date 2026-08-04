@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -37,17 +36,21 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { searchInstruments, type Instrument } from "@/lib/catalog";
-import { CloudSync } from "@/components/cloud-sync";
+import { AccountButton } from "@/components/account-button";
 import { DataSafetyPanel } from "@/components/data-safety";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
 import {
+  backupCurrent,
   loadPortfolio,
   savePortfolio,
   STORAGE_KEYS,
   type PortfolioData,
 } from "@/lib/storage";
+import { decideMerge, fetchRemote, pushRemote } from "@/lib/sync";
+import type { SyncState } from "@/components/data-safety";
 import {
   buildProjectionPath,
   buildProjectionSeries,
@@ -191,6 +194,7 @@ export function Portfolio() {
   const claimOwnership = () =>
     setDataState((state) => (state === "user" ? state : "user"));
   const replaceAll = (data: PortfolioData) => {
+    backupCurrent(localStorage, "pre-replace");
     claimOwnership();
     setCorruptKey(null);
     setHoldings(data.holdings.map(migrateHolding));
@@ -201,12 +205,66 @@ export function Portfolio() {
     setHoldings([]);
     setEvents([]);
   };
-  const restoreCloudSnapshot = useCallback((data: PortfolioData) => {
-    setCorruptKey(null);
-    setHoldings(data.holdings.map(migrateHolding));
-    setEvents(data.events);
-    setDataState("user");
-  }, []);
+
+  const { status: authStatus } = useSession();
+  const [syncState, setSyncState] = useState<SyncState>("off");
+  const initialSyncDone = useRef(false);
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      dataState === "loading" ||
+      initialSyncDone.current
+    ) {
+      return;
+    }
+    initialSyncDone.current = true;
+    const localData: PortfolioData =
+      dataState === "user" ? { holdings, events } : { holdings: [], events: [] };
+    void (async () => {
+      setSyncState("checking");
+      const remote = await fetchRemote();
+      if (!remote) {
+        setSyncState("error");
+        return;
+      }
+      const decision = decideMerge(
+        { savedAt: lastSeenSavedAt.current, data: localData },
+        remote,
+      );
+      if (decision.action === "take-remote") {
+        replaceAll(decision.data);
+      } else if (decision.pushLocal) {
+        await pushRemote(
+          lastSeenSavedAt.current ?? new Date().toISOString(),
+          localData,
+        );
+      }
+      setSyncState("synced");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus, dataState, holdings, events]);
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      dataState !== "user" ||
+      !initialSyncDone.current
+    ) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      void pushRemote(
+        lastSeenSavedAt.current ?? new Date().toISOString(),
+        { holdings, events },
+      ).then((ok) => setSyncState(ok ? "synced" : "error"));
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [holdings, events, authStatus, dataState]);
+  useEffect(() => {
+    if (authStatus === "unauthenticated") {
+      initialSyncDone.current = false;
+      setSyncState("off");
+    }
+  }, [authStatus]);
 
   const visibleHoldings = useMemo(
     () =>
@@ -333,13 +391,7 @@ export function Portfolio() {
             <a href="#fordeling">Fordeling</a>
           </nav>
           <div className="header-actions">
-            <CloudSync
-              holdings={holdings}
-              events={events}
-              localReady={dataState !== "loading"}
-              localHasData={dataState === "user"}
-              onRestore={restoreCloudSnapshot}
-            />
+            <AccountButton />
             <button
               className={`mode-toggle ${advanced ? "active" : ""}`}
               aria-pressed={advanced}
@@ -529,6 +581,7 @@ export function Portfolio() {
               isDemo={dataState === "demo"}
               corruptKey={corruptKey}
               onReplace={replaceAll}
+              syncState={syncState}
             />
           </aside>
         </section>
@@ -543,7 +596,7 @@ export function Portfolio() {
           <a href="#beholdning">Beholdning</a>
           <a href="#datakilder">Datakvalitet</a>
         </div>
-        <small>Privat skylagring med lokale sikkerhetskopier</small>
+        <small>Data lagres lokalt på enheten din</small>
       </footer>
       {advanced && adding ? (
         <AddPanel

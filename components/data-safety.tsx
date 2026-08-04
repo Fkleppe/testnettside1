@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Cloud,
+  CloudOff,
   DownloadCloud,
   FileWarning,
   History,
+  RefreshCw,
   ShieldCheck,
   UploadCloud,
 } from "lucide-react";
@@ -36,17 +39,48 @@ function downloadFile(name: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
+export type SyncState = "off" | "checking" | "synced" | "error";
+
+const syncConfig: Record<
+  SyncState,
+  { label: string; detail: string; icon: typeof Cloud }
+> = {
+  off: {
+    label: "Kun lokal lagring",
+    detail: "Logg inn for å synkronisere mellom enheter",
+    icon: CloudOff,
+  },
+  checking: {
+    label: "Synkroniserer …",
+    detail: "Henter skykopien din",
+    icon: RefreshCw,
+  },
+  synced: {
+    label: "Synkronisert til skyen",
+    detail: "Kryptert kopi lagres på profilen din",
+    icon: Cloud,
+  },
+  error: {
+    label: "Synkfeil",
+    detail: "Endringer lagres fortsatt lokalt",
+    icon: CloudOff,
+  },
+};
+
 export function DataSafetyPanel({
   data,
   isDemo,
   corruptKey,
   onReplace,
+  syncState,
 }: {
   data: PortfolioData;
   isDemo: boolean;
   corruptKey: string | null;
   onReplace: (data: PortfolioData) => void;
+  syncState: SyncState;
 }) {
+  const SyncIcon = syncConfig[syncState].icon;
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [pendingImport, setPendingImport] = useState<{
@@ -119,6 +153,13 @@ export function DataSafetyPanel({
           <span>Lokal kopi, eksport og gjenoppretting</span>
         </div>
         <ShieldCheck size={16} />
+      </div>
+      <div className={`sync-status sync-${syncState}`}>
+        <SyncIcon size={15} />
+        <p>
+          <b>{syncConfig[syncState].label}</b>
+          <span>{syncConfig[syncState].detail}</span>
+        </p>
       </div>
       {corruptKey ? (
         <div className="safety-alert">

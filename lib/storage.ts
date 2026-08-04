@@ -248,6 +248,20 @@ function writeRollingBackup(
   }
 }
 
+/** Eksplisitt backup av gjeldende lagrede data, utenom 6-timersintervallet.
+ *  Brukes rett før import/synk erstatter porteføljen. */
+export function backupCurrent(store: StorageLike, label: string) {
+  const raw = store.getItem(DATA_KEY);
+  if (!raw) return;
+  try {
+    const envelope = envelopeSchema.parse(JSON.parse(raw));
+    if (envelope.holdings.length === 0) return;
+    store.setItem(`${BACKUP_PREFIX}${label}-${envelope.savedAt}`, raw);
+  } catch {
+    preserveCorrupt(store, raw, new Date());
+  }
+}
+
 export function listBackups(store: StorageLike): BackupEntry[] {
   const entries: BackupEntry[] = [];
   for (const key of storageKeys(store)) {
@@ -323,6 +337,26 @@ export function parseImportedJson(text: string): ImportResult {
   const events = salvageItems<PortfolioEvent>(root.data.events ?? [], eventSchema);
   if (holdings.valid.length === 0) {
     return { ok: false, error: "Ingen gyldige beholdninger i filen." };
+  }
+  return {
+    ok: true,
+    data: { holdings: holdings.valid, events: events.valid },
+    droppedItems: holdings.dropped + events.dropped,
+  };
+}
+
+/** Validerer utenfra-kommende porteføljedata (synk/API) med item-salvage. */
+export function validatePortfolioData(input: unknown):
+  | { ok: true; data: PortfolioData; droppedItems: number }
+  | { ok: false; error: string } {
+  const root = importSchema.safeParse(input);
+  if (!root.success) {
+    return { ok: false, error: "Payload mangler holdings-liste." };
+  }
+  const holdings = salvageItems<Holding>(root.data.holdings, holdingSchema);
+  const events = salvageItems<PortfolioEvent>(root.data.events ?? [], eventSchema);
+  if (holdings.valid.length === 0 && root.data.holdings.length > 0) {
+    return { ok: false, error: "Ingen gyldige beholdninger i payload." };
   }
   return {
     ok: true,
