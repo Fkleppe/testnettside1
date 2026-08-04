@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type FormEvent,
@@ -36,7 +37,15 @@ import {
   X,
 } from "lucide-react";
 import { searchInstruments, type Instrument } from "@/lib/catalog";
+import { DataSafetyPanel } from "@/components/data-safety";
+import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
+import {
+  loadPortfolio,
+  savePortfolio,
+  STORAGE_KEYS,
+  type PortfolioData,
+} from "@/lib/storage";
 import {
   buildProjectionPath,
   buildProjectionSeries,
@@ -62,8 +71,6 @@ import type {
   PriceMode,
 } from "@/lib/types";
 
-const STORAGE_KEY = "min-sparing-holdings-v1";
-const EVENT_STORAGE_KEY = "min-sparing-events-v1";
 const money = new Intl.NumberFormat("nb-NO", {
   style: "currency",
   currency: "NOK",
@@ -120,10 +127,14 @@ const accountConfig: Record<
 type AccountFilter = "all" | AccountGroup;
 type SortMode = "value" | "today" | "name";
 
+type DataState = "loading" | "user" | "demo" | "corrupt";
+
 export function Portfolio() {
-  const [holdings, setHoldings] = useState<Holding[]>(demoHoldings);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
   const [events, setEvents] = useState<PortfolioEvent[]>([]);
-  const [ready, setReady] = useState(false);
+  const [dataState, setDataState] = useState<DataState>("loading");
+  const [corruptKey, setCorruptKey] = useState<string | null>(null);
+  const lastSeenSavedAt = useRef<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Holding | null>(null);
   const [buying, setBuying] = useState<Holding | null>(null);
@@ -133,30 +144,61 @@ export function Portfolio() {
 
   useEffect(() => {
     queueMicrotask(() => {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved) as Holding[];
-          const migrated = parsed.map(migrateHolding);
-          setHoldings(migrated);
-          void refreshOfficialFunds(migrated).then(setHoldings);
-        } catch {}
+      const result = loadPortfolio(localStorage);
+      if (result.status === "ok" || result.status === "recovered-legacy") {
+        const migrated = result.data.holdings.map(migrateHolding);
+        setHoldings(migrated);
+        setEvents(result.data.events);
+        lastSeenSavedAt.current = result.savedAt;
+        setDataState("user");
+        void refreshOfficialFunds(migrated).then(setHoldings);
+      } else if (result.status === "corrupt") {
+        setCorruptKey(result.corruptKey);
+        setDataState("corrupt");
+      } else {
+        setHoldings(demoHoldings);
+        setDataState("demo");
       }
-      const savedEvents = localStorage.getItem(EVENT_STORAGE_KEY);
-      if (savedEvents) {
-        try {
-          setEvents(JSON.parse(savedEvents) as PortfolioEvent[]);
-        } catch {}
-      }
-      setReady(true);
     });
   }, []);
   useEffect(() => {
-    if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(holdings));
-  }, [holdings, ready]);
+    if (dataState !== "user") return;
+    lastSeenSavedAt.current = savePortfolio(
+      localStorage,
+      { holdings, events },
+      { lastSeenSavedAt: lastSeenSavedAt.current },
+    );
+  }, [holdings, events, dataState]);
   useEffect(() => {
-    if (ready) localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(events));
-  }, [events, ready]);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEYS.DATA_KEY || event.newValue === null) {
+        return;
+      }
+      const result = loadPortfolio(localStorage);
+      if (result.status === "ok") {
+        lastSeenSavedAt.current = result.savedAt;
+        setHoldings(result.data.holdings.map(migrateHolding));
+        setEvents(result.data.events);
+        setDataState("user");
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+  /** Demo-data blir brukerens egne først når de faktisk endrer noe. */
+  const claimOwnership = () =>
+    setDataState((state) => (state === "user" ? state : "user"));
+  const replaceAll = (data: PortfolioData) => {
+    claimOwnership();
+    setCorruptKey(null);
+    setHoldings(data.holdings.map(migrateHolding));
+    setEvents(data.events);
+  };
+  const startFresh = () => {
+    claimOwnership();
+    setHoldings([]);
+    setEvents([]);
+  };
 
   const visibleHoldings = useMemo(
     () =>
@@ -193,18 +235,24 @@ export function Portfolio() {
       ) as Record<AccountGroup, ReturnType<typeof calculateTotals>>,
     [holdings],
   );
-  const remove = (id: string) =>
+  const remove = (id: string) => {
+    claimOwnership();
     setHoldings((current) => current.filter((item) => item.id !== id));
-  const update = (next: Holding) =>
+  };
+  const update = (next: Holding) => {
+    claimOwnership();
     setHoldings((current) =>
       current.map((item) => (item.id === next.id ? next : item)),
     );
-  const moveAccount = (id: string, accountGroup: AccountGroup) =>
+  };
+  const moveAccount = (id: string, accountGroup: AccountGroup) => {
+    claimOwnership();
     setHoldings((current) =>
       current.map((item) =>
         item.id === id ? { ...item, accountGroup } : item,
       ),
     );
+  };
   const recordPurchase = (
     item: Holding,
     purchase: Omit<
@@ -212,6 +260,7 @@ export function Portfolio() {
       "id" | "type" | "holdingId" | "holdingName" | "accountGroup" | "createdAt"
     >,
   ) => {
+    claimOwnership();
     setHoldings((current) =>
       current.map((holding) =>
         holding.id === item.id ? addPurchase(holding, purchase) : holding,
@@ -311,6 +360,34 @@ export function Portfolio() {
           <a href="#datakilder">Datakvalitet</a>
           <a href="#fordeling">Fordeling</a>
         </nav>
+        {dataState === "demo" ? (
+          <div className="advanced-notice demo-notice">
+            <CircleHelp size={15} />
+            <span>
+              <b>Du ser eksempeldata.</b> Ingenting lagres før du gjør din
+              første endring – da blir porteføljen din egen.
+            </span>
+            <button
+              onClick={() => {
+                startFresh();
+                setAdvanced(true);
+                setAdding(true);
+              }}
+            >
+              <Plus size={14} /> Start med tom portefølje
+            </button>
+          </div>
+        ) : null}
+        {dataState === "corrupt" ? (
+          <div className="advanced-notice corrupt-notice">
+            <CircleHelp size={15} />
+            <span>
+              <b>Lagrede data kunne ikke leses.</b> Ingenting er slettet – se
+              «Sikkerhet»-panelet for råkopi og gjenoppretting.
+            </span>
+            <a href="#sikkerhet">Åpne Sikkerhet</a>
+          </div>
+        ) : null}
         {advanced ? (
           <div className="advanced-notice">
             <Settings2 size={15} />
@@ -430,7 +507,14 @@ export function Portfolio() {
           <aside className="right-stack">
             <TodayPanel totals={totals} />
             <DataPanel holdings={visibleHoldings} />
+            <TaxPanel holdings={visibleHoldings} />
             <ActivityPanel events={events} activeAccount={activeAccount} />
+            <DataSafetyPanel
+              data={{ holdings, events }}
+              isDemo={dataState === "demo"}
+              corruptKey={corruptKey}
+              onReplace={replaceAll}
+            />
           </aside>
         </section>
       </div>
@@ -450,6 +534,7 @@ export function Portfolio() {
         <AddPanel
           onClose={() => setAdding(false)}
           onAdd={(item) => {
+            claimOwnership();
             setHoldings((current) => [item, ...current]);
             setEvents((current) => [
               {
