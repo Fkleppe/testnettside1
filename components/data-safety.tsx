@@ -116,7 +116,7 @@ export function DataSafetyPanel({
       <div className="card-title-row">
         <div>
           <h2>Sikkerhet</h2>
-          <span>Dataene lagres kun på denne enheten</span>
+          <span>Lokal kopi, eksport og gjenoppretting</span>
         </div>
         <ShieldCheck size={16} />
       </div>

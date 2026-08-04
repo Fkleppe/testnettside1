@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -37,6 +38,7 @@ import {
   X,
 } from "lucide-react";
 import { searchInstruments, type Instrument } from "@/lib/catalog";
+import { CloudSync } from "@/components/cloud-sync";
 import { DataSafetyPanel } from "@/components/data-safety";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
@@ -199,6 +201,12 @@ export function Portfolio() {
     setHoldings([]);
     setEvents([]);
   };
+  const restoreCloudSnapshot = useCallback((data: PortfolioData) => {
+    setCorruptKey(null);
+    setHoldings(data.holdings.map(migrateHolding));
+    setEvents(data.events);
+    setDataState("user");
+  }, []);
 
   const visibleHoldings = useMemo(
     () =>
@@ -325,6 +333,13 @@ export function Portfolio() {
             <a href="#fordeling">Fordeling</a>
           </nav>
           <div className="header-actions">
+            <CloudSync
+              holdings={holdings}
+              events={events}
+              localReady={dataState !== "loading"}
+              localHasData={dataState === "user"}
+              onRestore={restoreCloudSnapshot}
+            />
             <button
               className={`mode-toggle ${advanced ? "active" : ""}`}
               aria-pressed={advanced}
@@ -528,7 +543,7 @@ export function Portfolio() {
           <a href="#beholdning">Beholdning</a>
           <a href="#datakilder">Datakvalitet</a>
         </div>
-        <small>Data lagres lokalt på enheten din</small>
+        <small>Privat skylagring med lokale sikkerhetskopier</small>
       </footer>
       {advanced && adding ? (
         <AddPanel

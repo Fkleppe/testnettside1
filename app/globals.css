@@ -243,6 +243,204 @@ h3 {
   background: color-mix(in oklch, var(--warning) 12%, var(--surface));
   color: var(--warning);
 }
+.cloud-button {
+  min-width: 126px;
+  border: 1px solid var(--line) !important;
+  background: var(--surface) !important;
+  color: var(--muted);
+}
+.cloud-button.synced {
+  border-color: color-mix(in oklch, var(--positive) 40%, var(--line)) !important;
+  color: var(--positive);
+}
+.cloud-button.error {
+  border-color: color-mix(in oklch, var(--negative) 45%, var(--line)) !important;
+  color: var(--negative);
+}
+.cloud-button.loading,
+.cloud-button.syncing,
+.cloud-button.checking {
+  color: var(--warning);
+}
+
+.auth-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.auth-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: 0 !important;
+  background: oklch(3% 0.002 250 / 0.8) !important;
+  backdrop-filter: blur(4px);
+}
+.auth-dialog {
+  position: relative;
+  width: min(440px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 28px 80px oklch(0% 0 0 / 0.5);
+  padding: 34px;
+  text-align: left;
+}
+.auth-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+.auth-close:hover {
+  background: var(--surface-active);
+  color: var(--text);
+}
+.auth-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--blue) 14%, var(--surface));
+  color: var(--blue);
+}
+.auth-kicker {
+  margin: 19px 0 5px;
+  color: var(--positive);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+.auth-dialog h2 {
+  margin: 0 42px 12px 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+.auth-copy {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.auth-form > label {
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+.auth-form > div {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--page);
+  padding: 0 12px;
+  color: var(--muted);
+}
+.auth-form > div:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--blue) 24%, transparent);
+}
+.auth-form input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 0.75rem;
+}
+.auth-form > button,
+.auth-secondary {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 22px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+.auth-form > button {
+  margin-top: 5px;
+  border: 0;
+  background: var(--blue);
+  color: var(--text);
+}
+.auth-form > button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.auth-secondary {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface-active);
+  color: var(--muted);
+}
+.auth-message {
+  margin: 13px 0 0;
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--positive) 9%, var(--surface));
+  padding: 10px 12px;
+  color: var(--positive);
+  font-size: 0.625rem;
+  line-height: 1.45;
+}
+.auth-safety {
+  margin: 16px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.5625rem;
+}
+.auth-safety svg {
+  flex: 0 0 auto;
+  color: var(--positive);
+}
+.auth-status-card {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid color-mix(in oklch, var(--positive) 32%, var(--line));
+  border-radius: 7px;
+  background: color-mix(in oklch, var(--positive) 7%, var(--surface));
+  margin-bottom: 17px;
+  padding: 12px 14px;
+  color: var(--positive);
+}
+.auth-status-card span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.auth-status-card b {
+  font-size: 0.75rem;
+}
+.auth-status-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: 0.625rem;
+  white-space: nowrap;
+}
 .mobile-menu {
   display: none !important;
 }
@@ -2360,6 +2558,17 @@ footer small {
   }
   .header-actions .mode-toggle {
     display: inline-flex !important;
+  }
+  .cloud-button {
+    min-width: 32px;
+    width: 32px;
+    padding: 0 !important;
+  }
+  .cloud-button span {
+    display: none;
+  }
+  .auth-dialog {
+    padding: 28px 20px;
   }
   .forecast-inputs {
     grid-template-columns: 1fr;

@@ -10,7 +10,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-`TWELVE_DATA_API_KEY` er valgfri og skal bare ligge i lokale/Vercel-miljøvariabler. Ingen nøkler eksponeres i nettleseren. CoinGecko brukes uten nøkkel for et begrenset offentlig kall, eller med valgfri Demo-nøkkel.
+`TWELVE_DATA_API_KEY` er valgfri og skal bare ligge i lokale/Vercel-miljøvariabler. Ingen hemmelige nøkler eksponeres i nettleseren. CoinGecko brukes uten nøkkel for et begrenset offentlig kall, eller med valgfri Demo-nøkkel. Supabase-variablene leveres automatisk av Vercel Marketplace-integrasjonen.
 
 ## Datakilder og begrensninger
 
@@ -25,11 +25,13 @@ npm run dev
 
 - Next.js App Router og TypeScript
 - serverrute i `/api/quote` skjuler API-nøkler og cacher svar
-- porteføljen lagres lokalt i nettleseren; ingen konto eller database i første versjon
-- ekstra kjøp kan registreres som sum eller antall andeler; beholdning, inngangsverdi og en lokal aktivitetslogg oppdateres samlet
+- Supabase Auth gir passordfri e-postinnlogging, mens Postgres lagrer én atomisk og versjonert porteføljekopi per bruker
+- Row Level Security knytter alle spørringer til den innloggede brukerens ID; anonyme brukere har ingen tilgang og hele skykopien kan ikke slettes fra appen
+- eksisterende nettleserdata valideres, sikkerhetskopieres og kopieres til skyen først etter vellykket innlogging; den versjonerte lokale kopien, eksport/import og rullerende sikkerhetskopier beholdes
+- ekstra kjøp kan registreres som sum eller antall andeler; beholdning, inngangsverdi og aktivitetslogg oppdateres og synkroniseres samlet
 - dagsendring regnes fra forrige kurs når den finnes; prosent alene omregnes tilbake til korrekt kroneendring
 - fremtidsestimatet kan bruke verdi-vektet historisk CAGR eller helt manuelle antakelser, med egen startverdi og månedlig sparing
 - en historikkgraf vises først når løsningen har ekte, vedvarende daglige snapshots
 - responsivt, norsk grensesnitt med demoportefølje
 
-Neste naturlige steg er innlogging og synkronisering på tvers av enheter, en lisensiert instrument- og fondsdatabase, daglige snapshots, børskalender og en etterprøvbar estimatmodell for fond.
+Databaseskjema og RLS-regler ligger i `supabase/portfolio_snapshots.sql`. Neste naturlige steg er en lisensiert instrument- og fondsdatabase, servergenererte daglige snapshots, børskalender, tydelig konflikthåndtering for helt samtidige endringer og en etterprøvbar estimatmodell for fond.
