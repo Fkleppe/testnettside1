@@ -44,9 +44,10 @@ body {
   line-height: 1.4285714286;
   font-weight: 400;
   font-kerning: normal;
-  font-feature-settings:
-    "tnum" 1,
-    "kern" 1;
+  /* Ikke tnum globalt: Schibsted Grotesk gir tabulatorbredde på punktum/
+     komma, som ser ødelagt ut i prosa («37 , 84 %»). Grotesk-sifrene er
+     tilnærmet like brede, så høyrejusterte tallkolonner holder seg. */
+  font-feature-settings: "kern" 1;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
 }
@@ -148,7 +149,7 @@ h3 {
   top: 0;
   z-index: 40;
   height: 56px;
-  background: color-mix(in oklab, var(--page) 78%, transparent);
+  background: color-mix(in oklab, var(--page) 93%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid color-mix(in oklab, var(--line-soft) 70%, transparent);
@@ -454,9 +455,9 @@ h3 {
 
 .nordnet-shell {
   width: min(1632px, calc(100% - 40px));
-  min-height: 1249px;
   margin: 0 auto;
   padding-top: 12px;
+  padding-bottom: 8px;
 }
 .nordnet-shell > h1 {
   margin: 0;
@@ -472,6 +473,8 @@ h3 {
   margin-top: 14px;
   padding: 3px;
   width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
   border: 1px solid var(--line-soft);
   border-radius: 999px;
   background: color-mix(in oklab, var(--surface) 60%, transparent);
@@ -2123,13 +2126,14 @@ h3 {
 }
 
 footer {
-  min-height: 633px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: start;
   gap: 60px;
-  padding: 45px max(20px, calc((100vw - 1632px) / 2));
-  background: var(--surface);
+  margin-top: 48px;
+  border-top: 1px solid var(--line-soft);
+  padding: 34px max(20px, calc((100vw - 1632px) / 2)) 44px;
+  background: transparent;
   color: var(--muted);
   font-size: 0.6rem;
 }
@@ -2744,9 +2748,6 @@ footer small {
     grid-template-columns: 1fr;
     gap: 25px;
   }
-  footer {
-    min-height: 170px;
-  }
   footer small {
     justify-self: start;
   }
@@ -2780,8 +2781,12 @@ footer small {
     display: none;
   }
   .economy-tabs {
-    gap: 23px;
-    overflow-x: auto;
+    gap: 2px;
+  }
+  .economy-tabs button,
+  .economy-tabs a {
+    padding: 6px 11px;
+    font-size: 0.75rem;
   }
   .economy-tabs a,
   .economy-tabs button {
@@ -3579,6 +3584,61 @@ footer small {
 }
 .ld-card-tax .ld-vignette {
   flex: 1;
+}
+.ld-vignette-tax {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.ld-tax-bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 34px;
+  padding: 24px 16px 6px;
+}
+.ld-tax-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.ld-tax-bar i {
+  order: 3;
+  width: 44px;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--muted) 45%, var(--surface)),
+    color-mix(in oklab, var(--muted) 14%, var(--surface))
+  );
+  margin-top: 5px;
+}
+.ld-tax-bar.net i {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--positive) 75%, var(--surface)),
+    color-mix(in oklab, var(--positive) 18%, var(--surface))
+  );
+}
+.ld-tax-bar b {
+  order: 1;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.ld-tax-bar.net b {
+  color: var(--positive);
+}
+.ld-tax-bar span {
+  order: 4;
+  margin-top: 7px;
+  color: var(--quiet);
+  font-size: 0.625rem;
+}
+.ld-vignette-tax .ld-vignette-rows {
+  border-top: 1px solid var(--line-soft);
 }
 .ld-bento > .ld-card:nth-child(3) {
   grid-area: acct;

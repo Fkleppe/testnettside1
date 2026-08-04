@@ -4,7 +4,7 @@ import { Landing } from "@/components/landing";
 export const metadata: Metadata = {
   title: "Min Sparing — gratis porteføljeoversikt for fond, aksjer og krypto",
   description:
-    "Samle fond, aksjer og krypto fra Nordnet, Kron, Firi og DNB i ett dashbord. Ekte daglig historikk, skatteestimat med 2026-satser og kryptert synk. Gratis, uten registrering.",
+    "Samle fond, aksjer og krypto i ett dashbord med ekte daglig historikk, skatteestimat og kryptert synk. Gratis, uten registrering.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Min Sparing — hele sparingen din i én oversikt",

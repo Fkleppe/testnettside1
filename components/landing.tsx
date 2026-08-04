@@ -48,18 +48,32 @@ function MiniChart() {
 
 function MiniTax() {
   return (
-    <div className="ld-vignette ld-vignette-rows" aria-hidden="true">
-      <div className="ld-mini-row">
-        <span>Aksjefond (1,72 × 22 %)</span>
-        <b>37,84 %</b>
+    <div className="ld-vignette ld-vignette-tax" aria-hidden="true">
+      <div className="ld-tax-bars">
+        <div className="ld-tax-bar">
+          <i style={{ height: "168px" }} />
+          <b>848 388</b>
+          <span>Før skatt</span>
+        </div>
+        <div className="ld-tax-bar net">
+          <i style={{ height: "156px" }} />
+          <b>790 188</b>
+          <span>Etter skatt</span>
+        </div>
       </div>
-      <div className="ld-mini-row">
-        <span>Krypto</span>
-        <b>22 %</b>
-      </div>
-      <div className="ld-mini-row ld-mini-sum">
-        <span>Verdi etter skatt</span>
-        <b className="positive">790 188 kr</b>
+      <div className="ld-vignette-rows">
+        <div className="ld-mini-row">
+          <span>Aksjefond (1,72 × 22 %)</span>
+          <b>37,84 %</b>
+        </div>
+        <div className="ld-mini-row">
+          <span>Krypto</span>
+          <b>22 %</b>
+        </div>
+        <div className="ld-mini-row ld-mini-sum">
+          <span>Verdi etter skatt</span>
+          <b className="positive">790 188 kr</b>
+        </div>
       </div>
     </div>
   );
@@ -187,7 +201,7 @@ export function Landing() {
             <div className="ld-laptop">
               <div className="ld-laptop-screen">
                 <Image
-                  src="/marketing/dashboard-2.png"
+                  src="/marketing/dashboard-3.png"
                   width={1560}
                   height={975}
                   priority
