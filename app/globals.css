@@ -1,13 +1,13 @@
 :root {
   --font-ui: "Schibsted Grotesk Variable", Arial, sans-serif;
   --font-data: "Schibsted Grotesk Variable", Arial, sans-serif;
-  --page: oklch(18.2% 0 0);
-  --header: oklch(0% 0 0);
-  --surface: oklch(22.6% 0 0);
-  --surface-hover: oklch(25.5% 0 0);
-  --surface-active: oklch(32% 0 0);
-  --line: oklch(30% 0 0);
-  --line-soft: oklch(26% 0 0);
+  --page: oklch(13% 0.006 150);
+  --header: oklch(9.5% 0.006 150);
+  --surface: oklch(20.5% 0.005 150);
+  --surface-hover: oklch(23.5% 0.005 150);
+  --surface-active: oklch(30% 0.006 150);
+  --line: oklch(29% 0.005 150);
+  --line-soft: oklch(24.5% 0.005 150);
   --text: oklch(100% 0 0);
   --muted: oklch(69% 0.006 250);
   --quiet: oklch(53% 0.005 250);
@@ -93,7 +93,8 @@ h3 {
 
 .market-strip {
   height: 28px;
-  background: var(--header);
+  background: transparent;
+  border-bottom: 1px solid color-mix(in oklab, var(--line-soft) 60%, transparent);
 }
 .market-strip-inner {
   width: min(1632px, calc(100% - 40px));
@@ -143,8 +144,14 @@ h3 {
 }
 
 .main-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   height: 56px;
-  background: var(--header);
+  background: color-mix(in oklab, var(--page) 78%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid color-mix(in oklab, var(--line-soft) 70%, transparent);
 }
 .header-inner {
   width: min(1632px, calc(100% - 40px));
@@ -459,11 +466,15 @@ h3 {
   letter-spacing: 0;
 }
 .economy-tabs {
-  height: 45px;
   display: flex;
-  align-items: stretch;
-  gap: 34px;
-  border-bottom: 1px solid var(--line);
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 3px;
+  width: fit-content;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--surface) 60%, transparent);
 }
 .economy-tabs button,
 .economy-tabs a {
@@ -471,25 +482,23 @@ h3 {
   display: flex;
   align-items: center;
   border: 0;
+  border-radius: 999px;
   background: none;
   color: var(--muted);
   text-decoration: none;
-  padding: 0;
-  font-size: 0.875rem;
-  line-height: 1.4285714286;
+  padding: 7px 15px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
   font-weight: 700;
+  transition: color 0.15s, background 0.15s;
+}
+.economy-tabs button:hover,
+.economy-tabs a:hover {
+  color: var(--text);
 }
 .economy-tabs .active {
   color: var(--text);
-}
-.economy-tabs .active::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 2px;
-  background: var(--text);
+  background: var(--surface-active);
 }
 .advanced-notice {
   min-height: 42px;
@@ -545,11 +554,20 @@ h3 {
 .breakdown-card,
 .holdings-card,
 .forecast-card,
-.activity-card {
+.activity-card,
+.movers-card {
   min-width: 0;
-  background: var(--surface);
-  border-radius: var(--radius);
+  border: 1px solid var(--line-soft);
+  background: color-mix(in oklab, var(--surface) 82%, var(--page));
+  border-radius: 12px;
   overflow: hidden;
+}
+.app-shell {
+  background: radial-gradient(
+    1100px 480px at 50% -160px,
+    color-mix(in oklab, var(--positive) 6%, transparent),
+    transparent 70%
+  );
 }
 .card-title-row {
   min-height: 52px;
@@ -940,6 +958,149 @@ h3 {
   color: var(--muted);
   font-size: 0.6875rem;
   line-height: 1.5;
+}
+.history-value-line {
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--positive) 55%, transparent));
+}
+.history-cost-line {
+  stroke: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+.history-live-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.history-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  color: inherit;
+  background: transparent;
+  animation: live-pulse 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  border-color: color-mix(in oklab, var(--positive) 70%, transparent);
+}
+@keyframes live-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.history-legend {
+  position: absolute;
+  left: 14px;
+  bottom: 6px;
+  display: flex;
+  gap: 14px;
+  color: var(--quiet);
+  font-size: 0.625rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+.history-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.history-legend i {
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+}
+.history-legend i.cost {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--muted) 0 3px,
+    transparent 3px 6px
+  );
+}
+.breakdown-mode {
+  display: flex;
+  gap: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 2px;
+}
+.breakdown-mode button {
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  padding: 4px 11px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.breakdown-mode button.on {
+  background: var(--surface-active);
+  color: var(--text);
+}
+.movers-list {
+  padding: 2px 8px 10px;
+}
+.mover-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-radius: 7px;
+  padding: 8px 12px;
+}
+.mover-row:hover {
+  background: var(--surface-hover);
+}
+.mover-row > i {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+.mover-row > i.positive {
+  background: color-mix(in oklab, var(--positive) 14%, var(--surface));
+}
+.mover-row > i.negative {
+  background: color-mix(in oklab, var(--negative) 14%, var(--surface));
+}
+.mover-row > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mover-row > span b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.mover-row > span small,
+.mover-row em small {
+  color: var(--muted);
+  font-size: 0.625rem;
+}
+.mover-row em {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-style: normal;
+}
+.mover-row em b {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 .range-row {
   height: 62px;
@@ -2469,7 +2630,9 @@ footer small {
   }
 }
 
-@media (max-width: 1450px) {
+/* 1672 = fast grid (1632) + sidepadding (40): under dette må kolonnene
+   være fleksible, ellers klippes høyrekolonnen i 1450–1672-båndet. */
+@media (max-width: 1672px) {
   .portfolio-grid {
     grid-template-columns: minmax(285px, 1fr) minmax(560px, 2fr) minmax(
         285px,
@@ -3029,6 +3192,7 @@ footer small {
 .ld {
   --ld-bg: oklch(12.5% 0.006 150);
   min-height: 100dvh;
+  overflow-x: clip;
   /* Body setter tnum globalt for dashbordet; i marketing-prosa gir det
      tabulatorbredde på punktum/komma («din .», «37 , 84»). Skru av her. */
   font-feature-settings: "kern" 1;
@@ -3187,52 +3351,108 @@ footer small {
 .ld-shot::before {
   content: "";
   position: absolute;
-  inset: -8% -6% 20%;
-  background: radial-gradient(
-    60% 55% at 50% 30%,
-    color-mix(in oklab, var(--positive) 11%, transparent),
-    transparent 70%
-  );
+  inset: -14% -10% 12%;
+  background:
+    radial-gradient(
+      52% 48% at 50% 24%,
+      color-mix(in oklab, var(--positive) 15%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      75% 60% at 50% 40%,
+      color-mix(in oklab, var(--positive) 6%, transparent),
+      transparent 75%
+    );
   pointer-events: none;
 }
-.ld-shot-frame {
-  position: relative;
-  max-width: 1160px;
-  margin: 0 auto;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
-  overflow: hidden;
-  box-shadow:
-    0 30px 90px rgb(0 0 0 / 0.55),
-    0 4px 22px rgb(0 0 0 / 0.4);
-}
-.ld-shot-bar {
-  display: flex;
+.ld-tour {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border-bottom: 1px solid var(--line-soft);
-  background: color-mix(in oklab, var(--surface) 70%, var(--ld-bg));
-  padding: 10px 14px;
+  gap: 9px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--surface) 55%, transparent);
+  padding: 7px 16px;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: border-color 0.15s, background 0.15s;
 }
-.ld-shot-bar i {
+.ld-tour:hover {
+  border-color: var(--muted);
+  background: color-mix(in oklab, var(--surface) 85%, transparent);
+}
+.ld-tour svg {
   width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--surface-active);
+  height: 11px;
+  color: var(--positive);
 }
-.ld-shot-bar span {
+.ld-laptop {
+  position: relative;
+  max-width: 1080px;
   margin: 0 auto;
-  border-radius: 6px;
-  background: color-mix(in oklab, var(--surface-active) 55%, transparent);
-  padding: 3px 46px;
-  color: var(--quiet);
-  font-size: 0.6875rem;
 }
-.ld-shot-frame img {
+.ld-laptop-screen {
+  position: relative;
+  border: 1px solid oklch(32% 0.004 150);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  background: oklch(17% 0.004 150);
+  padding: 12px 12px 0;
+  box-shadow:
+    0 40px 120px rgb(0 0 0 / 0.6),
+    0 6px 30px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 oklch(40% 0.004 150 / 0.5);
+}
+.ld-laptop-screen::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: oklch(30% 0.01 150);
+  transform: translateX(-50%);
+}
+.ld-laptop-screen img {
   display: block;
   width: 100%;
   height: auto;
+  border-radius: 7px 7px 0 0;
+}
+.ld-laptop-base {
+  position: relative;
+  height: 15px;
+  margin: 0 -4.6%;
+  border-radius: 0 0 16px 16px;
+  background: linear-gradient(
+    180deg,
+    oklch(38% 0.004 150),
+    oklch(22% 0.004 150) 55%,
+    oklch(13% 0.004 150)
+  );
+  box-shadow: 0 22px 60px rgb(0 0 0 / 0.55);
+}
+.ld-laptop-base i {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 13%;
+  height: 6px;
+  border-radius: 0 0 9px 9px;
+  background: oklch(16% 0.004 150);
+  transform: translateX(-50%);
+}
+.ld-shot-fade {
+  position: absolute;
+  left: -24px;
+  right: -24px;
+  bottom: -2px;
+  height: 130px;
+  background: linear-gradient(180deg, transparent, var(--ld-bg) 82%);
+  pointer-events: none;
 }
 .ld-proof {
   display: flex;
@@ -3303,6 +3523,53 @@ footer small {
   border-radius: 12px;
   background: color-mix(in oklab, var(--surface) 72%, var(--ld-bg));
   overflow: hidden;
+  transition:
+    border-color 0.2s,
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.2s;
+}
+.ld-card:hover {
+  border-color: var(--line);
+  background: color-mix(in oklab, var(--surface) 88%, var(--ld-bg));
+  transform: translateY(-3px);
+}
+.ld-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(24px, 4vw, 56px);
+  margin-top: 44px;
+}
+.ld-step {
+  position: relative;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 22px;
+}
+.ld-step::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 44px;
+  height: 1px;
+  background: var(--positive);
+}
+.ld-step span {
+  color: color-mix(in oklab, var(--positive) 75%, var(--text));
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.ld-step h3 {
+  margin: 10px 0 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.ld-step p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
 }
 .ld-card-hist {
   grid-area: hist;
@@ -3705,6 +3972,13 @@ footer small {
     flex-direction: column;
     align-items: center;
     row-gap: 10px;
+  }
+  .ld-steps {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+  .ld-laptop-base {
+    margin: 0 -2%;
   }
   .ld-tax-row {
     grid-template-columns: 1fr;

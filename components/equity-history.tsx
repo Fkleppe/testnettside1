@@ -63,7 +63,7 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
     const times = visible.map((point) => Date.parse(point.date));
     const t0 = times[0];
     const span = times[times.length - 1] - t0;
-    const values = visible.map((point) => point.value);
+    const values = visible.flatMap((point) => [point.value, point.cost]);
     let min = Math.min(...values);
     let max = Math.max(...values);
     if (min === max) {
@@ -71,16 +71,28 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
       max += 1;
     }
     const usable = 100 - PAD_TOP - PAD_BOTTOM;
+    const toY = (value: number) =>
+      PAD_TOP + (1 - (value - min) / (max - min)) * usable;
     const coords = visible.map((point, index) => ({
       x: ((times[index] - t0) / span) * 100,
-      y: PAD_TOP + (1 - (point.value - min) / (max - min)) * usable,
+      y: toY(point.value),
     }));
-    const line = coords
-      .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(3)},${c.y.toFixed(3)}`)
-      .join("");
+    const toPath = (points: { x: number; y: number }[]) =>
+      points
+        .map(
+          (c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(3)},${c.y.toFixed(3)}`,
+        )
+        .join("");
+    const line = toPath(coords);
+    const costLine = toPath(
+      visible.map((point, index) => ({
+        x: ((times[index] - t0) / span) * 100,
+        y: toY(point.cost),
+      })),
+    );
     const area = `${line}L100,100L0,100Z`;
     const change = visible[visible.length - 1].value - visible[0].value;
-    return { coords, line, area, min, max, change };
+    return { coords, line, costLine, area, min, max, change };
   }, [visible]);
 
   const onMove = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -184,6 +196,15 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
               </defs>
               <path d={geometry.area} fill={`url(#${gradientId})`} />
               <path
+                className="history-cost-line"
+                d={geometry.costLine}
+                fill="none"
+                strokeWidth="1"
+                strokeDasharray="3 4"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                className="history-value-line"
                 d={geometry.line}
                 fill="none"
                 stroke={color}
@@ -193,6 +214,23 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
                 vectorEffect="non-scaling-stroke"
               />
             </svg>
+            <i
+              className="history-live-dot"
+              style={{
+                left: `${geometry.coords[geometry.coords.length - 1].x}%`,
+                top: `${geometry.coords[geometry.coords.length - 1].y}%`,
+                background: color,
+              }}
+              aria-hidden="true"
+            />
+            <div className="history-legend" aria-hidden="true">
+              <span>
+                <i style={{ background: color }} /> Verdi
+              </span>
+              <span>
+                <i className="cost" /> Investert
+              </span>
+            </div>
             <span className="axis-label min">{money.format(geometry.min)}</span>
             <span className="axis-label max">{money.format(geometry.max)}</span>
             {hover && hovered ? (

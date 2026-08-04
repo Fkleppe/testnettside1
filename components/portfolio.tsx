@@ -41,6 +41,7 @@ import { searchInstruments, type Instrument } from "@/lib/catalog";
 import { AccountButton } from "@/components/account-button";
 import { DataSafetyPanel } from "@/components/data-safety";
 import { EquityHistory } from "@/components/equity-history";
+import { MoversCard } from "@/components/movers-card";
 import {
   mergeSnapshots,
   snapshotPoints,
@@ -414,7 +415,7 @@ export function Portfolio() {
           </a>
           <nav>
             <a className="active" href="#top">
-              Mine sider
+              Oversikt
             </a>
             <a href="#beholdning">Beholdning</a>
             <a href="#datakilder">Datakilder</a>
@@ -450,7 +451,7 @@ export function Portfolio() {
       </header>
 
       <div className="nordnet-shell" id="top">
-        <h1>Min økonomi</h1>
+        <h1>Porteføljen min</h1>
         <nav className="economy-tabs">
           <button className="active">Oversikt</button>
           <a href="#beholdning">Beholdning</a>
@@ -516,6 +517,7 @@ export function Portfolio() {
               onAdd={() => setAdding(true)}
             />
             <BreakdownPanel
+              holdings={holdings}
               totals={accountTotals}
               allTotals={allTotals}
               active={activeAccount}
@@ -604,6 +606,7 @@ export function Portfolio() {
           </div>
           <aside className="right-stack">
             <TodayPanel totals={totals} />
+            <MoversCard holdings={visibleHoldings} />
             <DataPanel holdings={visibleHoldings} />
             <TaxPanel holdings={visibleHoldings} />
             <ActivityPanel events={events} activeAccount={activeAccount} />
@@ -1357,36 +1360,94 @@ function ForecastPanel({ holdings }: { holdings: Holding[] }) {
   );
 }
 
+const kindConfig: Record<AssetKind, { label: string; color: string }> = {
+  fund: { label: "Fond", color: "var(--account-private)" },
+  stock: { label: "Aksjer", color: "var(--account-business)" },
+  crypto: { label: "Krypto", color: "var(--warning)" },
+};
+const kindOrder: AssetKind[] = ["fund", "stock", "crypto"];
+
 function BreakdownPanel({
+  holdings,
   totals,
   allTotals,
   active,
   onChange,
 }: {
+  holdings: Holding[];
   totals: Record<AccountGroup, ReturnType<typeof calculateTotals>>;
   allTotals: ReturnType<typeof calculateTotals>;
   active: AccountFilter;
   onChange: (value: AccountFilter) => void;
 }) {
-  const segments = accountOrder.map((group) => ({
-    group,
-    percent: allTotals.value
-      ? (totals[group].value / allTotals.value) * 100
-      : 0,
-  }));
-  const gradient = segments
-    .map(({ group, percent }, index) => {
-      const from = segments
+  const [mode, setMode] = useState<"account" | "kind">("account");
+  const kindTotals = useMemo(
+    () =>
+      Object.fromEntries(
+        kindOrder.map((kind) => [
+          kind,
+          holdings
+            .filter((item) => item.kind === kind)
+            .reduce((sum, item) => sum + holdingValue(item), 0),
+        ]),
+      ) as Record<AssetKind, number>,
+    [holdings],
+  );
+  const rows =
+    mode === "account"
+      ? accountOrder.map((group) => ({
+          key: group as string,
+          label: accountConfig[group].label,
+          color: accountConfig[group].color,
+          value: totals[group].value,
+          onClick: () => onChange(group),
+          selected: active === group,
+        }))
+      : kindOrder.map((kind) => ({
+          key: kind as string,
+          label: kindConfig[kind].label,
+          color: kindConfig[kind].color,
+          value: kindTotals[kind],
+          onClick: undefined,
+          selected: false,
+        }));
+  const gradient = rows
+    .map((row, index) => {
+      const percent = allTotals.value
+        ? (row.value / allTotals.value) * 100
+        : 0;
+      const from = rows
         .slice(0, index)
-        .reduce((sum, segment) => sum + segment.percent, 0);
-      return `${accountConfig[group].color} ${from}% ${from + percent}%`;
+        .reduce(
+          (sum, prev) =>
+            sum + (allTotals.value ? (prev.value / allTotals.value) * 100 : 0),
+          0,
+        );
+      return `${row.color} ${from}% ${from + percent}%`;
     })
     .join(", ");
   return (
     <section className="breakdown-card" id="fordeling">
       <div className="card-title-row">
         <h2>Fordeling</h2>
-        <span className="card-context">Av total verdi</span>
+        <div className="breakdown-mode" role="tablist" aria-label="Fordeling etter">
+          <button
+            role="tab"
+            aria-selected={mode === "account"}
+            className={mode === "account" ? "on" : ""}
+            onClick={() => setMode("account")}
+          >
+            Kontoer
+          </button>
+          <button
+            role="tab"
+            aria-selected={mode === "kind"}
+            className={mode === "kind" ? "on" : ""}
+            onClick={() => setMode("kind")}
+          >
+            Type
+          </button>
+        </div>
       </div>
       <div className="donut-wrap">
         <div
@@ -1402,20 +1463,21 @@ function BreakdownPanel({
         </div>
       </div>
       <div className="breakdown-list">
-        {accountOrder.map((group) => (
+        {rows.map((row) => (
           <button
-            key={group}
-            className={active === group ? "active" : ""}
-            onClick={() => onChange(group)}
+            key={row.key}
+            className={row.selected ? "active" : ""}
+            disabled={!row.onClick}
+            onClick={row.onClick}
           >
-            <i style={{ background: accountConfig[group].color }} />
-            <span>{accountConfig[group].label}</span>
+            <i style={{ background: row.color }} />
+            <span>{row.label}</span>
             <b>
               {allTotals.value
-                ? `${Math.round((totals[group].value / allTotals.value) * 100)}%`
+                ? `${Math.round((row.value / allTotals.value) * 100)}%`
                 : "0%"}
             </b>
-            <small>{money.format(totals[group].value)}</small>
+            <small>{money.format(row.value)}</small>
           </button>
         ))}
       </div>

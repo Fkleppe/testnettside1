@@ -159,9 +159,12 @@ export function Landing() {
 
       <main>
         <section className="ld-hero">
-          <p className="ld-eyebrow">
-            Gratis · Uten registrering · Bygget for norske sparere
-          </p>
+          <Link href="/app" className="ld-tour">
+            <svg viewBox="0 0 10 12" aria-hidden="true">
+              <path d="M1 1.2v9.6L9 6z" fill="currentColor" />
+            </svg>
+            Se demoen med eksempeldata
+          </Link>
           <h1>
             Hele sparingen din.
             <br />
@@ -181,21 +184,21 @@ export function Landing() {
             </a>
           </div>
           <div className="ld-shot">
-            <div className="ld-shot-frame">
-              <div className="ld-shot-bar" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-                <span>minsparing.vercel.app</span>
+            <div className="ld-laptop">
+              <div className="ld-laptop-screen">
+                <Image
+                  src="/marketing/dashboard-2.png"
+                  width={1560}
+                  height={975}
+                  priority
+                  alt="Dashbordet i Min Sparing: kontoer, historikk-graf over egenkapital, dagens bevegelser og skatteestimat"
+                />
               </div>
-              <Image
-                src="/marketing/dashboard.png"
-                width={1560}
-                height={975}
-                priority
-                alt="Dashbordet i Min Sparing: kontoer, historikk-graf over egenkapital, beholdning og skatteestimat"
-              />
+              <div className="ld-laptop-base" aria-hidden="true">
+                <i />
+              </div>
             </div>
+            <div className="ld-shot-fade" aria-hidden="true" />
           </div>
         </section>
 
@@ -204,6 +207,37 @@ export function Landing() {
           <span>Offisiell NAV fra DNB</span>
           <span>Kurser fra CoinGecko &amp; Yahoo</span>
           <span>AES-256-kryptert skysynk</span>
+        </section>
+
+        <section className="ld-section ld-how" id="slik-fungerer-det">
+          <p className="ld-kicker">Slik fungerer det</p>
+          <h2>I gang på ett minutt</h2>
+          <div className="ld-steps">
+            <div className="ld-step">
+              <span>01</span>
+              <h3>Legg inn beholdningen</h3>
+              <p>
+                Søk blant 909 norske fond, eller registrer aksjer og krypto
+                manuelt. Ingen BankID, ingen fullmakter.
+              </p>
+            </div>
+            <div className="ld-step">
+              <span>02</span>
+              <h3>Følg utviklingen daglig</h3>
+              <p>
+                Kurser hentes automatisk, og hver dag festes et nytt punkt i
+                historikken din — helt av seg selv.
+              </p>
+            </div>
+            <div className="ld-step">
+              <span>03</span>
+              <h3>Se hele bildet</h3>
+              <p>
+                Fordeling, dagens bevegelser og verdi etter skatt — samlet i ett
+                dashbord som alltid er oppdatert.
+              </p>
+            </div>
+          </div>
         </section>
 
         <section className="ld-section" id="funksjoner">
