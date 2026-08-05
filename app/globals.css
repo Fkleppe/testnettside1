@@ -5328,3 +5328,57 @@ footer small {
     height: 26px;
   }
 }
+
+
+/* Hard flyt-garanti: siden kan aldri drives/skyves sideveis. clip (ikke
+   hidden) lager ingen scroll-container, så sticky header overlever. */
+html,
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+.header-actions button,
+.header-actions a {
+  white-space: nowrap;
+}
+.pnl-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pnl-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smale mobiler (≤380px): header og kontrollrader må krympe/bryte pent */
+@media (max-width: 380px) {
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 6px;
+    gap: 6px;
+  }
+  .header-actions button {
+    padding: 6px 10px;
+    font-size: 0.6875rem;
+  }
+  .theme-switch button {
+    min-width: 30px;
+    min-height: 30px;
+  }
+  .history-ranges [role="tablist"] {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .history-ranges button,
+  .history-bench-toggle {
+    padding: 6px 9px;
+  }
+  .acct-chip {
+    min-width: 210px;
+  }
+  .dash-grid,
+  .holdings-card .card-title-row {
+    --mobile-pad: 12px;
+  }
+}
