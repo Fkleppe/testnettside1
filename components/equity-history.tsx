@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { Clock3 } from "lucide-react";
 import {
   filterRange,
   type HistoryPoint,
@@ -116,27 +115,44 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
   };
 
   if (points.length < 2) {
+    const seed = points[points.length - 1];
     return (
-      <div className="history-empty">
-        <div className="history-grid" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </div>
-        <div>
-          <Clock3 size={20} />
-          <span>
+      <div className="equity-history">
+        <div className="history-chart is-seed">
+          <div className="history-grid" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
+          <i className="history-baseline" aria-hidden="true" />
+          {seed ? (
+            <>
+              <i
+                className="history-live-dot"
+                style={{
+                  left: "84%",
+                  top: "50%",
+                  background: "var(--positive)",
+                }}
+                aria-hidden="true"
+              />
+              <span className="history-seed-value">
+                {money.format(seed.value)}
+              </span>
+            </>
+          ) : null}
+          <div className="history-seed-note">
             <b>
-              {points.length === 1
-                ? "Første datapunkt er lagret"
+              {seed
+                ? "Første datapunkt er lagret i dag"
                 : "Historikk bygges fra neste dagsoppdatering"}
             </b>
             <small>
-              {points.length === 1
-                ? "Grafen tegnes fra dag to — vi viser bare ekte daglige snapshots."
+              {seed
+                ? "Grafen tegnes fra dag 2 — bare ekte daglige snapshots."
                 : "Vi viser ikke en tidsserie før porteføljen har ekte daglige snapshots."}
             </small>
-          </span>
+          </div>
         </div>
       </div>
     );

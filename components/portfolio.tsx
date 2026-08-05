@@ -386,7 +386,15 @@ export function Portfolio() {
           </span>
           <span>
             I dag{" "}
-            <b className={allTotals.today >= 0 ? "positive" : "negative"}>
+            <b
+              className={
+                !allTotals.updated
+                  ? "neutral"
+                  : allTotals.today >= 0
+                    ? "positive"
+                    : "negative"
+              }
+            >
               {allTotals.updated
                 ? signedPercent(allTotals.todayPercent)
                 : "Ikke beregnet"}
@@ -718,7 +726,15 @@ function AccountRail({
         </span>
         <em>
           <b>{money.format(allTotals.value)}</b>
-          <small className={allTotals.today >= 0 ? "positive" : "negative"}>
+          <small
+            className={
+              !allTotals.updated
+                ? "neutral"
+                : allTotals.today >= 0
+                  ? "positive"
+                  : "negative"
+            }
+          >
             {allTotals.updated
               ? signedPercent(allTotals.todayPercent)
               : "Ikke beregnet"}
@@ -741,7 +757,15 @@ function AccountRail({
               <small>{values.positions} investeringer</small>
             </span>
             <em>
-              <small className={values.today >= 0 ? "positive" : "negative"}>
+              <small
+                className={
+                  !values.updated
+                    ? "neutral"
+                    : values.today >= 0
+                      ? "positive"
+                      : "negative"
+                }
+              >
                 {values.updated ? signedPercent(values.todayPercent) : "—"}
               </small>
               <b>{money.format(values.value)}</b>
@@ -798,7 +822,15 @@ function EquityPanel({
           <h2>{money.format(totals.value).replace("kr", "NOK")}</h2>
           <p>
             Dagens utvikling{" "}
-            <b className={totals.today >= 0 ? "positive" : "negative"}>
+            <b
+              className={
+                !totals.updated
+                  ? "neutral"
+                  : totals.today >= 0
+                    ? "positive"
+                    : "negative"
+              }
+            >
               {totals.updated
                 ? `${signedPercent(totals.todayPercent)} · ${signedMoney(totals.today)}`
                 : "Ikke beregnet"}
@@ -816,7 +848,15 @@ function EquityPanel({
       <div className="range-row">
         <div className="selected">
           <span>I dag</span>
-          <b className={totals.today >= 0 ? "positive" : "negative"}>
+          <b
+            className={
+              !totals.updated
+                ? "neutral"
+                : totals.today >= 0
+                  ? "positive"
+                  : "negative"
+            }
+          >
             {totals.updated ? signedPercent(totals.todayPercent) : "—"}
           </b>
         </div>
@@ -867,10 +907,26 @@ function TodayPanel({
         <Clock3 size={16} />
       </div>
       <div className="today-value">
-        <strong className={totals.today >= 0 ? "positive" : "negative"}>
+        <strong
+          className={
+            !totals.updated
+              ? "neutral"
+              : totals.today >= 0
+                ? "positive"
+                : "negative"
+          }
+        >
           {totals.updated ? signedMoney(totals.today) : "—"}
         </strong>
-        <b className={totals.today >= 0 ? "positive" : "negative"}>
+        <b
+          className={
+            !totals.updated
+              ? "neutral"
+              : totals.today >= 0
+                ? "positive"
+                : "negative"
+          }
+        >
           {totals.updated
             ? signedPercent(totals.todayPercent)
             : "Ikke beregnet"}
@@ -1463,23 +1519,29 @@ function BreakdownPanel({
         </div>
       </div>
       <div className="breakdown-list">
-        {rows.map((row) => (
-          <button
-            key={row.key}
-            className={row.selected ? "active" : ""}
-            disabled={!row.onClick}
-            onClick={row.onClick}
-          >
-            <i style={{ background: row.color }} />
-            <span>{row.label}</span>
-            <b>
-              {allTotals.value
-                ? `${Math.round((row.value / allTotals.value) * 100)}%`
-                : "0%"}
-            </b>
-            <small>{money.format(row.value)}</small>
-          </button>
-        ))}
+        {rows.map((row) => {
+          const percent = allTotals.value
+            ? Math.round((row.value / allTotals.value) * 100)
+            : 0;
+          return (
+            <button
+              key={row.key}
+              className={row.selected ? "active" : ""}
+              disabled={!row.onClick}
+              onClick={row.onClick}
+            >
+              <i style={{ background: row.color }} />
+              <span>{row.label}</span>
+              <em className="row-meter" aria-hidden="true">
+                <span
+                  style={{ width: `${percent}%`, background: row.color }}
+                />
+              </em>
+              <b>{percent}%</b>
+              <small>{money.format(row.value)}</small>
+            </button>
+          );
+        })}
       </div>
     </section>
   );

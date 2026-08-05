@@ -962,6 +962,40 @@ h3 {
   font-size: 0.6875rem;
   line-height: 1.5;
 }
+.neutral {
+  color: var(--muted) !important;
+}
+.history-baseline {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 50%;
+  border-top: 1px dashed color-mix(in oklab, var(--muted) 38%, transparent);
+}
+.history-seed-value {
+  position: absolute;
+  left: 84%;
+  top: calc(50% - 26px);
+  transform: translateX(-50%);
+  color: var(--text);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.history-seed-note {
+  position: absolute;
+  left: 16px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.history-seed-note b {
+  font-size: 0.75rem;
+}
+.history-seed-note small {
+  color: var(--muted);
+  font-size: 0.625rem;
+}
 .history-value-line {
   filter: drop-shadow(0 0 5px color-mix(in oklab, var(--positive) 55%, transparent));
 }
@@ -1806,13 +1840,27 @@ h3 {
   width: 100%;
   min-height: 40px;
   display: grid;
-  grid-template-columns: 8px 1fr 32px 74px;
+  grid-template-columns: 8px minmax(0, 1fr) minmax(28px, 64px) 32px 74px;
   align-items: center;
   gap: 8px;
   border: 0;
   border-bottom: 1px solid var(--line-soft);
   background: transparent;
   text-align: left;
+}
+.breakdown-list .row-meter {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-active);
+  overflow: hidden;
+}
+.breakdown-list .row-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+.breakdown-list button:disabled {
+  cursor: default;
 }
 .breakdown-list button:hover,
 .breakdown-list button.active {
