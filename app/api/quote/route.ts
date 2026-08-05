@@ -167,7 +167,9 @@ export async function GET(request: NextRequest) {
           const found = searchResponse.ok
             ? ((await searchResponse.json()).quotes ?? []).find(
                 (item: { quoteType?: string; symbol?: string }) =>
-                  item.quoteType === "MUTUALFUND" && item.symbol,
+                  Boolean(item.symbol) &&
+                  (item.quoteType === "MUTUALFUND" ||
+                    /^[A-Z]{2}[A-Z0-9]{10}$/.test(symbol)),
               )
             : null;
           if (found) yahooSymbol = found.symbol;

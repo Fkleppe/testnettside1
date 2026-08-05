@@ -44,7 +44,9 @@ export async function GET(request: NextRequest) {
         if (search.ok) {
           const found = ((await search.json()).quotes ?? []).find(
             (q: { quoteType?: string; symbol?: string }) =>
-              q.quoteType === "MUTUALFUND" && q.symbol,
+              Boolean(q.symbol) &&
+              (q.quoteType === "MUTUALFUND" ||
+                /^[A-Z]{2}[A-Z0-9]{10}$/.test(symbol)),
           );
           if (found) {
             const chartResponse = await fetch(
