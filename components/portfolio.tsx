@@ -488,6 +488,7 @@ export function Portfolio() {
     snapshots: [],
   });
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- bevisst ref-speil av siste state for hendelseslyttere (storage/fokus/intervall)
     liveSyncData.current = { holdings, events, snapshots };
   }, [holdings, events, snapshots]);
   useEffect(() => {
