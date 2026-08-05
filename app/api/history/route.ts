@@ -31,6 +31,65 @@ export async function GET(request: NextRequest) {
   }
   try {
     if (kind === "fund") {
+      // Primær: Yahoo indekserer norske fond (ISIN-søk → 0P…-symbol) med
+      // ett års daglige NAV-er i NOK. Fallback: Fondsportalens NAV-arkiv.
+      try {
+        const search = await fetch(
+          `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=3&newsCount=0`,
+          {
+            headers: { "User-Agent": "MinSparing/1.0" },
+            next: { revalidate: 604800 },
+          },
+        );
+        if (search.ok) {
+          const found = ((await search.json()).quotes ?? []).find(
+            (q: { quoteType?: string; symbol?: string }) =>
+              q.quoteType === "MUTUALFUND" && q.symbol,
+          );
+          if (found) {
+            const chartResponse = await fetch(
+              `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(found.symbol)}?interval=1d&range=1y`,
+              {
+                headers: { "User-Agent": "MinSparing/1.0" },
+                next: { revalidate: 21600 },
+              },
+            );
+            const chart = await chartResponse.json();
+            const result = chart?.chart?.result?.[0];
+            if (
+              chartResponse.ok &&
+              result &&
+              (result.meta?.currency ?? "NOK") === "NOK"
+            ) {
+              const stamps: number[] = result.timestamp ?? [];
+              const closes: (number | null)[] =
+                result.indicators?.quote?.[0]?.close ?? [];
+              const points: HistoryPointDto[] = stamps
+                .map((ts, index) => ({
+                  date: new Date(ts * 1000).toISOString().slice(0, 10),
+                  price: closes[index] ?? NaN,
+                }))
+                .filter((p) => Number.isFinite(p.price) && p.price > 0);
+              const last = points[points.length - 1];
+              if (
+                points.length > 30 &&
+                last &&
+                Date.now() - Date.parse(`${last.date}T00:00:00Z`) <
+                  30 * 86_400_000
+              ) {
+                return NextResponse.json({
+                  symbol,
+                  currency: "NOK",
+                  source: "Yahoo · NAV-historikk",
+                  points,
+                });
+              }
+            }
+          }
+        }
+      } catch {
+        // Yahoo nede → prøv fallback under.
+      }
       const response = await fetch(
         `https://fondsportalen.no/api/funds/${encodeURIComponent(symbol)}/nav-history?period=1y`,
         { next: { revalidate: 21600 } },
