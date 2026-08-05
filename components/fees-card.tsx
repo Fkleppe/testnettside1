@@ -12,10 +12,36 @@ const money = new Intl.NumberFormat("nb-NO", {
 
 type FundInfo = { ongoingCharge: number | null };
 
+const PLATFORM_FEES_KEY = "min-sparing-platform-fees";
+
+function loadPlatformFees(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(PLATFORM_FEES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return typeof parsed === "object" && parsed ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 /** «Hva betaler jeg egentlig?» — årlig fondskostnad i kroner, noe verken
  *  Nordnet eller Kron viser samlet. Løpende kostnad hentes per ISIN. */
 export function FeesCard({ holdings }: { holdings: Holding[] }) {
   const [info, setInfo] = useState<Record<string, FundInfo>>({});
+  const [platformFees, setPlatformFees] = useState<Record<string, number>>({});
+  useEffect(() => {
+    queueMicrotask(() => setPlatformFees(loadPlatformFees()));
+  }, []);
+  const setFee = (platform: string, value: string) => {
+    const pct = Number(value.replace(",", "."));
+    setPlatformFees((current) => {
+      const next = { ...current };
+      if (Number.isFinite(pct) && pct > 0) next[platform] = pct;
+      else delete next[platform];
+      localStorage.setItem(PLATFORM_FEES_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
   const funds = holdings.filter((item) => item.kind === "fund");
   const isins = [
     ...new Set(
@@ -69,7 +95,28 @@ export function FeesCard({ holdings }: { holdings: Holding[] }) {
     .sort((a, b) => (b.annual ?? 0) - (a.annual ?? 0));
   const known = rows.filter((row) => row.annual !== null);
   if (known.length === 0) return null;
-  const totalAnnual = known.reduce((sum, row) => sum + (row.annual ?? 0), 0);
+  // Plattformavgift: verdi per plattform × brukerens sats (bytter du
+  // plattform på en beholdning, flytter kostnaden seg automatisk).
+  const byPlatform = new Map<string, number>();
+  for (const item of funds) {
+    const platform = item.platform || "Ukjent";
+    byPlatform.set(
+      platform,
+      (byPlatform.get(platform) ?? 0) + holdingValue(item),
+    );
+  }
+  const platformRows = [...byPlatform.entries()].map(([platform, value]) => ({
+    platform,
+    value,
+    pct: platformFees[platform] ?? null,
+    annual:
+      platformFees[platform] != null
+        ? (value * platformFees[platform]) / 100
+        : 0,
+  }));
+  const platformAnnual = platformRows.reduce((sum, row) => sum + row.annual, 0);
+  const totalAnnual =
+    known.reduce((sum, row) => sum + (row.annual ?? 0), 0) + platformAnnual;
   const totalValue = known.reduce((sum, row) => sum + row.value, 0);
   const weighted = totalValue ? (totalAnnual / totalValue) * 100 : 0;
 
@@ -101,9 +148,29 @@ export function FeesCard({ holdings }: { holdings: Holding[] }) {
           </div>
         ))}
       </div>
+      <div className="fees-platforms">
+        <small>Plattformavgift per år (din sats i %)</small>
+        {platformRows.map((row) => (
+          <div key={row.platform} className="fees-row">
+            <span>{row.platform}</span>
+            <em>
+              <input
+                inputMode="decimal"
+                placeholder="0,00"
+                defaultValue={row.pct ?? ""}
+                aria-label={`Plattformavgift for ${row.platform} i prosent`}
+                onBlur={(event) => setFee(row.platform, event.target.value)}
+              />
+              %
+            </em>
+            <b>{row.pct != null ? money.format(row.annual) : "—"}</b>
+          </div>
+        ))}
+      </div>
       <p className="fees-note">
-        Basert på fondenes oppgitte løpende kostnader og dagens verdi. Plattform-
-        og transaksjonsgebyrer kommer i tillegg.
+        Fondskostnader fra fondenes oppgitte satser; plattformavgift bruker
+        satsene du selv setter (sjekk plattformens prisliste). Transaksjons-
+        gebyrer kommer i tillegg.
       </p>
     </section>
   );

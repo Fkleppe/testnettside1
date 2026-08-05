@@ -181,31 +181,51 @@ export async function GET(request: NextRequest) {
         const chart = await chartResponse.json();
         const result = chart?.chart?.result?.[0];
         const priceValue = Number(result?.meta?.regularMarketPrice);
-        if (
-          chartResponse.ok &&
-          result &&
-          priceValue > 0 &&
-          (result.meta?.currency ?? "NOK") === "NOK"
-        ) {
-          const previous = Number(
-            result.meta?.chartPreviousClose ?? result.meta?.previousClose,
-          );
-          const stamp = new Date(
-            (result.meta?.regularMarketTime ?? Date.now() / 1000) * 1000,
-          );
-          return NextResponse.json({
-            symbol,
-            name: result.meta?.longName ?? result.meta?.shortName,
-            price: priceValue,
-            previousPrice: previous > 0 ? previous : undefined,
-            changePercent:
-              previous > 0 ? ((priceValue - previous) / previous) * 100 : null,
-            changePeriod: "day",
-            currency: "NOK",
-            source: "Yahoo · NAV",
-            priceDate: osloDate(stamp),
-            updatedAt: new Date().toISOString(),
-          });
+        if (chartResponse.ok && result && priceValue > 0) {
+          const fundCurrency = result.meta?.currency ?? "NOK";
+          let rate = 1;
+          let previousRate = 1;
+          if (fundCurrency !== "NOK") {
+            const fxResponse = await fetch(
+              `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(`${fundCurrency}NOK=X`)}?interval=1d&range=5d`,
+              { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 1800 } },
+            );
+            const fxMeta = (await fxResponse.json())?.chart?.result?.[0]?.meta;
+            rate = Number(fxMeta?.regularMarketPrice ?? 0);
+            previousRate = Number(
+              fxMeta?.chartPreviousClose ?? fxMeta?.previousClose ?? rate,
+            );
+            if (!(rate > 0)) rate = 0;
+          }
+          if (rate > 0) {
+            const previous = Number(
+              result.meta?.chartPreviousClose ?? result.meta?.previousClose,
+            );
+            const stamp = new Date(
+              (result.meta?.regularMarketTime ?? Date.now() / 1000) * 1000,
+            );
+            const priceNok = priceValue * rate;
+            const previousNok = previous > 0 ? previous * previousRate : undefined;
+            return NextResponse.json({
+              symbol,
+              name: result.meta?.longName ?? result.meta?.shortName,
+              price: priceNok,
+              previousPrice: previousNok,
+              changePercent:
+                previousNok && previousNok > 0
+                  ? ((priceNok - previousNok) / previousNok) * 100
+                  : null,
+              changePeriod: "day",
+              currency: "NOK",
+              nativeCurrency: fundCurrency,
+              source:
+                fundCurrency === "NOK"
+                  ? "Yahoo · NAV"
+                  : `Yahoo · NAV (omregnet fra ${fundCurrency})`,
+              priceDate: osloDate(stamp),
+              updatedAt: new Date().toISOString(),
+            });
+          }
         }
       } catch {
         // Faller videre til manuell-melding.

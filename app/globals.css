@@ -4828,3 +4828,49 @@ footer small {
 .today-card .card-title-row {
   gap: 8px;
 }
+
+.history-bench-line {
+  stroke: var(--blue);
+  opacity: 0.85;
+}
+.history-legend i.bench {
+  background: var(--blue);
+}
+.history-bench-toggle {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  padding: 4px 11px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.history-bench-toggle.on {
+  border-color: color-mix(in oklab, var(--blue) 45%, var(--line));
+  background: color-mix(in oklab, var(--blue) 12%, transparent);
+  color: var(--text);
+}
+
+.fees-platforms {
+  border-top: 1px solid var(--line-soft);
+  padding: 10px 20px 2px;
+}
+.fees-platforms > small {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--quiet);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.fees-platforms input {
+  width: 52px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  padding: 3px 7px;
+  font-size: 0.75rem;
+  text-align: right;
+}

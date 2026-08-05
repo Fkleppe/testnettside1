@@ -59,6 +59,7 @@ import {
   type PriceSeries,
 } from "@/lib/reconstruct";
 import { periodPnl, type PnlPeriod } from "@/lib/pnl";
+import { drawPnlCard } from "@/lib/pnl-card";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
 import {
@@ -1197,58 +1198,31 @@ function TodayPanel({
     pnl === null ? "neutral" : pnl >= 0 ? "positive" : "negative";
   const downloadCard = () => {
     const canvas = document.createElement("canvas");
-    canvas.width = 1000;
-    canvas.height = 560;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const positive = (pnl ?? 0) >= 0;
-    const bg = ctx.createLinearGradient(0, 0, 1000, 560);
-    bg.addColorStop(0, positive ? "#07200f" : "#230a12");
-    bg.addColorStop(1, positive ? "#02130a" : "#12060b");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, 1000, 560);
-    const glow = ctx.createRadialGradient(820, 60, 20, 820, 60, 480);
-    glow.addColorStop(0, positive ? "rgba(74,222,128,0.16)" : "rgba(244,114,182,0.14)");
-    glow.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, 1000, 560);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "700 30px 'Inter Variable', Inter, sans-serif";
-    ctx.fillText("Min Sparing", 64, 84);
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.font = "600 24px 'Inter Variable', Inter, sans-serif";
     const periodLabel =
       period === "latest"
         ? changeLabel(totals)
         : period === "total"
           ? "PnL · Totalt"
           : `PnL · ${period === "7d" ? "7 dager" : period === "30d" ? "30 dager" : "1 år"}`;
-    ctx.fillText(periodLabel, 64, 150);
-    ctx.fillStyle = positive ? "#4ade80" : "#f472b6";
-    ctx.font = "800 96px 'Inter Variable', Inter, sans-serif";
-    ctx.fillText(pnl === null ? "—" : signedMoney(pnl), 60, 290);
-    if (percent !== null) {
-      const text = signedPercent(percent);
-      ctx.font = "700 40px 'Inter Variable', Inter, sans-serif";
-      const width = ctx.measureText(text).width + 48;
-      ctx.fillStyle = positive ? "rgba(74,222,128,0.16)" : "rgba(244,114,182,0.16)";
-      ctx.beginPath();
-      ctx.roundRect(60, 330, width, 76, 18);
-      ctx.fill();
-      ctx.fillStyle = positive ? "#86efac" : "#f9a8d4";
-      ctx.fillText(text, 84, 382);
-    }
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.font = "500 22px 'Inter Variable', Inter, sans-serif";
     const note =
       period === "latest" || period === "total"
-        ? new Date().toLocaleDateString("nb-NO", { day: "numeric", month: "long", year: "numeric" })
+        ? new Date().toLocaleDateString("nb-NO", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })
         : result
-          ? `Fra ${formatDateKey(result.fromDate)}${result.deposits > 0 ? " · innskuddsjustert" : ""}`
+          ? `Fra ${formatDateKey(result.fromDate)}${
+              result.deposits > 0 ? " · innskuddsjustert" : ""
+            }`
           : "";
-    ctx.fillText(note, 64, 470);
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.fillText("minsparing.vercel.app", 64, 512);
+    drawPnlCard(canvas, {
+      pnl,
+      percentText: percent === null ? null : signedPercent(percent),
+      amountText: pnl === null ? "—" : signedMoney(pnl),
+      periodLabel,
+      note,
+    });
     canvas.toBlob((blob) => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);

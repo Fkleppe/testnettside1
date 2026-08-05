@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
   filterRange,
   type HistoryPoint,
@@ -51,6 +51,34 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
   const gradientId = useId();
   const [range, setRange] = useState<HistoryRange>("max");
   const [hover, setHover] = useState<Hover | null>(null);
+  const [showBench, setShowBench] = useState(false);
+  const [bench, setBench] = useState<{ date: string; price: number }[] | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!showBench || bench !== null) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(
+          "/api/history?symbol=NO0010776040&kind=fund",
+        );
+        if (!response.ok) {
+          if (!cancelled) setBench([]);
+          return;
+        }
+        const json = await response.json();
+        if (!cancelled) {
+          setBench(Array.isArray(json.points) ? json.points : []);
+        }
+      } catch {
+        if (!cancelled) setBench([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showBench, bench]);
 
   const visible = useMemo(
     () => filterRange(points, range, new Date()),
@@ -62,9 +90,41 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
     const times = visible.map((point) => Date.parse(point.date));
     const t0 = times[0];
     const span = times[times.length - 1] - t0;
-    const values = visible.flatMap((point) => [point.value, point.cost]);
-    let min = Math.min(...values);
-    let max = Math.max(...values);
+
+    // Benchmark-verdier beregnes FØR skalaen, slik at alle linjer deler
+    // samme y-domene (indeksen frem-fylles per dato og forankres på
+    // porteføljens verdi ved første punkt med indeksdata).
+    let benchScaled: (number | null)[] | null = null;
+    if (showBench && bench && bench.length > 1) {
+      const benchValues: (number | null)[] = [];
+      let benchIndex = 0;
+      let lastPrice: number | null = null;
+      for (const point of visible) {
+        while (
+          benchIndex < bench.length &&
+          bench[benchIndex].date <= point.date
+        ) {
+          lastPrice = bench[benchIndex].price;
+          benchIndex += 1;
+        }
+        benchValues.push(lastPrice);
+      }
+      const anchorIndex = benchValues.findIndex((value) => value !== null);
+      if (anchorIndex >= 0) {
+        const scale =
+          visible[anchorIndex].value / (benchValues[anchorIndex] as number);
+        benchScaled = benchValues.map((value) =>
+          value === null ? null : value * scale,
+        );
+      }
+    }
+
+    const domainValues = [
+      ...visible.flatMap((point) => [point.value, point.cost]),
+      ...(benchScaled ?? []).filter((value): value is number => value !== null),
+    ];
+    let min = Math.min(...domainValues);
+    let max = Math.max(...domainValues);
     if (min === max) {
       min -= 1;
       max += 1;
@@ -72,27 +132,35 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
     const usable = 100 - PAD_TOP - PAD_BOTTOM;
     const toY = (value: number) =>
       PAD_TOP + (1 - (value - min) / (max - min)) * usable;
-    const coords = visible.map((point, index) => ({
-      x: ((times[index] - t0) / span) * 100,
-      y: toY(point.value),
-    }));
+    const toX = (index: number) => ((times[index] - t0) / span) * 100;
     const toPath = (points: { x: number; y: number }[]) =>
       points
         .map(
           (c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(3)},${c.y.toFixed(3)}`,
         )
         .join("");
+
+    const coords = visible.map((point, index) => ({
+      x: toX(index),
+      y: toY(point.value),
+    }));
     const line = toPath(coords);
     const costLine = toPath(
-      visible.map((point, index) => ({
-        x: ((times[index] - t0) / span) * 100,
-        y: toY(point.cost),
-      })),
+      visible.map((point, index) => ({ x: toX(index), y: toY(point.cost) })),
     );
     const area = `${line}L100,100L0,100Z`;
     const change = visible[visible.length - 1].value - visible[0].value;
-    return { coords, line, costLine, area, min, max, change };
-  }, [visible]);
+    let benchLine: string | null = null;
+    if (benchScaled) {
+      const benchCoords = benchScaled
+        .map((value, index) =>
+          value === null ? null : { x: toX(index), y: toY(value) },
+        )
+        .filter((c): c is { x: number; y: number } => c !== null);
+      if (benchCoords.length > 1) benchLine = toPath(benchCoords);
+    }
+    return { coords, line, costLine, area, min, max, change, benchLine };
+  }, [visible, showBench, bench]);
 
   const onMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!geometry) return;
@@ -179,6 +247,13 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
             </button>
           ))}
         </div>
+        <button
+          className={`history-bench-toggle ${showBench ? "on" : ""}`}
+          aria-pressed={showBench}
+          onClick={() => setShowBench((value) => !value)}
+        >
+          Indeks
+        </button>
         <span className="history-flex-spacer" />
         {visible.some((point) => point.origin === "rec") ? (
           <span
@@ -229,6 +304,15 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
                 strokeDasharray="3 4"
                 vectorEffect="non-scaling-stroke"
               />
+              {geometry.benchLine ? (
+                <path
+                  className="history-bench-line"
+                  d={geometry.benchLine}
+                  fill="none"
+                  strokeWidth="1.5"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ) : null}
               <path
                 className="history-value-line"
                 d={geometry.line}
@@ -256,6 +340,11 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
               <span>
                 <i className="cost" /> Investert
               </span>
+              {geometry.benchLine ? (
+                <span>
+                  <i className="bench" /> Verdensindeks
+                </span>
+              ) : null}
             </div>
             <span className="axis-label min">{money.format(geometry.min)}</span>
             <span className="axis-label max">{money.format(geometry.max)}</span>

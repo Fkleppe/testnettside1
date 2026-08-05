@@ -58,20 +58,51 @@ export async function GET(request: NextRequest) {
             );
             const chart = await chartResponse.json();
             const result = chart?.chart?.result?.[0];
-            if (
-              chartResponse.ok &&
-              result &&
-              (result.meta?.currency ?? "NOK") === "NOK"
-            ) {
+            if (chartResponse.ok && result) {
+              const fundCurrency = result.meta?.currency ?? "NOK";
               const stamps: number[] = result.timestamp ?? [];
               const closes: (number | null)[] =
                 result.indicators?.quote?.[0]?.close ?? [];
-              const points: HistoryPointDto[] = stamps
+              let points: HistoryPointDto[] = stamps
                 .map((ts, index) => ({
                   date: new Date(ts * 1000).toISOString().slice(0, 10),
                   price: closes[index] ?? NaN,
                 }))
                 .filter((p) => Number.isFinite(p.price) && p.price > 0);
+              if (fundCurrency !== "NOK" && points.length > 0) {
+                const fxResponse = await fetch(
+                  `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(`${fundCurrency}NOK=X`)}?interval=1d&range=1y`,
+                  { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 21600 } },
+                );
+                const fx = (await fxResponse.json())?.chart?.result?.[0];
+                const fxByDate = new Map<string, number>();
+                (fx?.timestamp ?? []).forEach((ts: number, index: number) => {
+                  const rate = fx?.indicators?.quote?.[0]?.close?.[index];
+                  if (Number.isFinite(rate) && rate > 0) {
+                    fxByDate.set(
+                      new Date(ts * 1000).toISOString().slice(0, 10),
+                      rate,
+                    );
+                  }
+                });
+                const sortedFx = [...fxByDate.entries()].sort();
+                if (sortedFx.length === 0) {
+                  points = [];
+                } else {
+                  let fxIndex = 0;
+                  let lastRate = sortedFx[0][1];
+                  points = points.map((p) => {
+                    while (
+                      fxIndex < sortedFx.length &&
+                      sortedFx[fxIndex][0] <= p.date
+                    ) {
+                      lastRate = sortedFx[fxIndex][1];
+                      fxIndex += 1;
+                    }
+                    return { date: p.date, price: p.price * lastRate };
+                  });
+                }
+              }
               const last = points[points.length - 1];
               if (
                 points.length > 30 &&
@@ -82,7 +113,10 @@ export async function GET(request: NextRequest) {
                 return NextResponse.json({
                   symbol,
                   currency: "NOK",
-                  source: "Yahoo · NAV-historikk",
+                  source:
+                    fundCurrency === "NOK"
+                      ? "Yahoo · NAV-historikk"
+                      : `Yahoo · NAV-historikk (omregnet fra ${fundCurrency})`,
                   points,
                 });
               }
