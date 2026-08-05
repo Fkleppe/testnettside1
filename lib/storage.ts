@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { mergeSnapshots, type DailySnapshot } from "./history";
+import { dropCorruptSnapshots, mergeSnapshots, type DailySnapshot } from "./history";
 import type { Holding, PortfolioEvent, SavingsGoal } from "./types";
 
 const DATA_KEY = "min-sparing-data-v2";
@@ -163,7 +163,8 @@ function salvageSnapshots(rawItems: unknown[] | undefined): DailySnapshot[] {
       valid.push({ groups: {}, ...parsed.data } as DailySnapshot);
     }
   }
-  return valid;
+  valid.sort((a, b) => (a.date < b.date ? -1 : 1));
+  return dropCorruptSnapshots(valid);
 }
 
 /** Unionsfletter historikk fra alle lesbare sikkerhetskopier — brukes når

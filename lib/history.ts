@@ -143,6 +143,34 @@ export function mergeSnapshots(
     : merged;
 }
 
+/**
+ * Retro-heal: fjerner observerte punkter der både verdi OG kost kollapser
+ * >40 % mot BEGGE nabodager. Kostprisen kan aldri V-forme seg i virkeligheten
+ * (innskudd bare øker den), så et slikt punkt er en delvis lastet beholdning
+ * som slapp gjennom før samme-dags-vakten fantes. Returnerer samme referanse
+ * når ingenting fjernes.
+ */
+export function dropCorruptSnapshots(
+  snapshots: DailySnapshot[],
+): DailySnapshot[] {
+  if (snapshots.length < 3) return snapshots;
+  const cleaned = snapshots.filter((item, index) => {
+    if (item.origin === "rec") return true;
+    const previous = snapshots[index - 1];
+    const next = snapshots[index + 1];
+    if (!previous || !next) return true;
+    return !(
+      previous.cost > 0 &&
+      next.cost > 0 &&
+      item.cost < previous.cost * 0.6 &&
+      item.cost < next.cost * 0.6 &&
+      item.value < previous.value * 0.6 &&
+      item.value < next.value * 0.6
+    );
+  });
+  return cleaned.length === snapshots.length ? snapshots : cleaned;
+}
+
 export function filterRange<T extends { date: string }>(
   snapshots: T[],
   range: HistoryRange,

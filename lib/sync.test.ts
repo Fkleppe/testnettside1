@@ -89,6 +89,7 @@ describe("decideMerge", () => {
       action: "keep-local",
       pushLocal: true,
       snapshots: [],
+      goal: null,
     });
   });
 
@@ -113,6 +114,7 @@ describe("decideMerge", () => {
       action: "keep-local",
       pushLocal: true,
       snapshots: [],
+      goal: null,
     });
   });
 

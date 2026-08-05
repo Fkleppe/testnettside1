@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  dropCorruptSnapshots,
   filterRange,
   localDateKey,
   mergeSnapshots,
@@ -188,5 +189,33 @@ describe("halvlastet-vakt", () => {
     // Markedskrasj (kost uendret) slipper gjennom
     const crash = upsertDailySnapshot(good, [makeHolding({ price: 30 }), makeHolding({ id: "h2", units: 100, cost: 9000, price: 30 })], new Date(2026, 7, 5, 13));
     expect(crash[crash.length - 1].value).toBeLessThan(good[good.length - 1].value * 0.5);
+  });
+});
+
+describe("dropCorruptSnapshots", () => {
+  const day = (date: string, value: number, cost: number, origin?: "rec") =>
+    makeSnapshot({ date, value, cost, ...(origin ? { origin } : {}) });
+  it("fjerner observert V-kollaps i både verdi og kost", () => {
+    const series = [
+      day("2026-08-03", 400000, 250000),
+      day("2026-08-04", 90000, 55000),
+      day("2026-08-05", 402000, 250000),
+    ];
+    const cleaned = dropCorruptSnapshots(series);
+    expect(cleaned.map((item) => item.date)).toEqual(["2026-08-03", "2026-08-05"]);
+  });
+  it("beholder markedskrasj (kost konstant) og rec-punkter", () => {
+    const crash = [
+      day("2026-08-03", 400000, 250000),
+      day("2026-08-04", 150000, 250000),
+      day("2026-08-05", 160000, 250000),
+    ];
+    expect(dropCorruptSnapshots(crash)).toBe(crash);
+    const rec = [
+      day("2026-08-03", 400000, 250000),
+      day("2026-08-04", 90000, 55000, "rec"),
+      day("2026-08-05", 402000, 250000),
+    ];
+    expect(dropCorruptSnapshots(rec)).toBe(rec);
   });
 });
