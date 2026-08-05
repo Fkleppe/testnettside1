@@ -19,6 +19,7 @@ import {
   Coins,
   Download,
   Eye,
+  EyeOff,
   History,
   Landmark,
   ListFilter,
@@ -403,6 +404,20 @@ export function Portfolio() {
   /** Fey-hilsen for innloggede. Settes etter hydrering — SSR og første
    *  klient-render må være identiske («Porteføljen min»). */
   const [heading, setHeading] = useState("Porteføljen min");
+  const [hideAmounts, setHideAmounts] = useState(false);
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (localStorage.getItem("min-sparing-hide-amounts") === "1") {
+        setHideAmounts(true);
+      }
+    });
+  }, []);
+  const toggleHideAmounts = () => {
+    setHideAmounts((value) => {
+      localStorage.setItem("min-sparing-hide-amounts", value ? "0" : "1");
+      return !value;
+    });
+  };
   type ThemeMode = "dark" | "light" | "nordlys";
   const [theme, setTheme] = useState<ThemeMode>("dark");
   useEffect(() => {
@@ -684,7 +699,10 @@ export function Portfolio() {
     );
   }
   return (
-    <main className="app-shell" data-theme={theme}>
+    <main
+      className={`app-shell ${hideAmounts ? "amounts-hidden" : ""}`}
+      data-theme={theme}
+    >
       <header className="main-header">
         <div className="header-inner">
           <a className="brand" href="#top" aria-label="Min Sparing – oversikt">
@@ -703,6 +721,14 @@ export function Portfolio() {
             <a href="#fordeling">Fordeling</a>
           </nav>
           <div className="header-actions">
+            <button
+              className={`privacy-toggle ${hideAmounts ? "on" : ""}`}
+              aria-pressed={hideAmounts}
+              title={hideAmounts ? "Vis beløp" : "Skjul beløp"}
+              onClick={toggleHideAmounts}
+            >
+              {hideAmounts ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
             <div className="theme-switch" role="radiogroup" aria-label="Fargetema">
               <button
                 role="radio"
@@ -732,7 +758,7 @@ export function Portfolio() {
                 <Sparkles size={13} />
               </button>
             </div>
-            <AccountButton />
+            <AccountButton syncState={authStatus === "authenticated" ? syncState : undefined} />
             <button
               className={`mode-toggle ${advanced ? "active" : ""}`}
               aria-pressed={advanced}

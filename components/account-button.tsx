@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { LogIn, LogOut, UserRound } from "lucide-react";
 
-export function AccountButton() {
+export function AccountButton({
+  syncState,
+}: {
+  syncState?: "off" | "checking" | "synced" | "error";
+}) {
   const { data: session, status } = useSession();
   const [googleEnabled, setGoogleEnabled] = useState(false);
 
@@ -30,6 +34,18 @@ export function AccountButton() {
         onClick={() => void signOut()}
         title={`Logget inn som ${session.user.email ?? session.user.name}`}
       >
+        {syncState && syncState !== "off" ? (
+          <i
+            className={`sync-dot ${syncState}`}
+            title={
+              syncState === "synced"
+                ? "Synkronisert til skyen"
+                : syncState === "checking"
+                  ? "Synkroniserer …"
+                  : "Synkfeil — prøver igjen automatisk"
+            }
+          />
+        ) : null}
         {session.user.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={session.user.image} alt="" width={18} height={18} />

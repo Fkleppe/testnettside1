@@ -81,6 +81,8 @@ export function DataSafetyPanel({
   syncState: SyncState;
 }) {
   const SyncIcon = syncConfig[syncState].icon;
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [pendingImport, setPendingImport] = useState<{
@@ -160,7 +162,32 @@ export function DataSafetyPanel({
           <b>{syncConfig[syncState].label}</b>
           <span>{syncConfig[syncState].detail}</span>
         </p>
+        {syncState !== "off" ? (
+          <button
+            className="cloud-delete"
+            onClick={() => {
+              if (!confirmDelete) {
+                setConfirmDelete(true);
+                return;
+              }
+              setConfirmDelete(false);
+              void fetch("/api/portfolio", { method: "DELETE" }).then(
+                (response) =>
+                  setDeleteStatus(
+                    response.ok
+                      ? "Skykopien er slettet. Nye endringer laster opp en ny."
+                      : "Fikk ikke slettet skykopien — prøv igjen.",
+                  ),
+              );
+            }}
+          >
+            {confirmDelete ? "Sikker? Trykk igjen" : "Slett skykopi"}
+          </button>
+        ) : null}
       </div>
+      {deleteStatus ? (
+        <p className="cloud-delete-status">{deleteStatus}</p>
+      ) : null}
       {corruptKey ? (
         <div className="safety-alert">
           <FileWarning size={18} />
