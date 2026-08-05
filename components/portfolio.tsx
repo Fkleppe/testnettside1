@@ -22,6 +22,7 @@ import {
   Landmark,
   ListFilter,
   LockKeyhole,
+  Moon,
   Pencil,
   Plus,
   ReceiptText,
@@ -30,6 +31,8 @@ import {
   Settings2,
   ShieldCheck,
   ShoppingCart,
+  Sparkles,
+  Sun,
   Trash2,
   TrendingUp,
   UserRound,
@@ -41,6 +44,7 @@ import { searchInstruments, type Instrument } from "@/lib/catalog";
 import { AccountButton } from "@/components/account-button";
 import { DataSafetyPanel } from "@/components/data-safety";
 import { EquityHistory } from "@/components/equity-history";
+import { FeesCard } from "@/components/fees-card";
 import { MoversCard } from "@/components/movers-card";
 import {
   mergeSnapshots,
@@ -396,6 +400,20 @@ export function Portfolio() {
   /** Fey-hilsen for innloggede. Settes etter hydrering — SSR og første
    *  klient-render må være identiske («Porteføljen min»). */
   const [heading, setHeading] = useState("Porteføljen min");
+  type ThemeMode = "dark" | "light" | "nordlys";
+  const [theme, setTheme] = useState<ThemeMode>("dark");
+  useEffect(() => {
+    queueMicrotask(() => {
+      const stored = localStorage.getItem("min-sparing-theme");
+      if (stored === "light" || stored === "nordlys") {
+        setTheme(stored);
+      }
+    });
+  }, []);
+  const chooseTheme = (mode: ThemeMode) => {
+    setTheme(mode);
+    localStorage.setItem("min-sparing-theme", mode);
+  };
   useEffect(() => {
     const name = session?.user?.name?.split(" ")[0];
     queueMicrotask(() => {
@@ -627,7 +645,7 @@ export function Portfolio() {
   };
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-theme={theme}>
       <header className="main-header">
         <div className="header-inner">
           <a className="brand" href="#top" aria-label="Min Sparing – oversikt">
@@ -646,6 +664,35 @@ export function Portfolio() {
             <a href="#fordeling">Fordeling</a>
           </nav>
           <div className="header-actions">
+            <div className="theme-switch" role="radiogroup" aria-label="Fargetema">
+              <button
+                role="radio"
+                aria-checked={theme === "dark"}
+                className={theme === "dark" ? "on" : ""}
+                title="Mørk"
+                onClick={() => chooseTheme("dark")}
+              >
+                <Moon size={13} />
+              </button>
+              <button
+                role="radio"
+                aria-checked={theme === "light"}
+                className={theme === "light" ? "on" : ""}
+                title="Lys"
+                onClick={() => chooseTheme("light")}
+              >
+                <Sun size={13} />
+              </button>
+              <button
+                role="radio"
+                aria-checked={theme === "nordlys"}
+                className={theme === "nordlys" ? "on" : ""}
+                title="Nordlys"
+                onClick={() => chooseTheme("nordlys")}
+              >
+                <Sparkles size={13} />
+              </button>
+            </div>
             <AccountButton />
             <button
               className={`mode-toggle ${advanced ? "active" : ""}`}
@@ -735,6 +782,7 @@ export function Portfolio() {
           onChange={setActiveAccount}
           allTotals={allTotals}
           totals={accountTotals}
+          snapshots={dataState === "user" ? snapshots : []}
         />
         <section className="dash-grid">
           <div className="dash-hero">
@@ -758,6 +806,7 @@ export function Portfolio() {
               onChange={setActiveAccount}
             />
             <TaxPanel holdings={visibleHoldings} />
+            <FeesCard holdings={visibleHoldings} />
             <ActivityPanel events={events} activeAccount={activeAccount} />
           </div>
             <section className="holdings-card" id="beholdning">
@@ -911,16 +960,36 @@ export function Portfolio() {
   );
 }
 
+function chipSparkPath(points: { value: number }[]): string | null {
+  if (points.length < 2) return null;
+  const values = points.map((p) => p.value);
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  if (min === max) {
+    min -= 1;
+    max += 1;
+  }
+  return points
+    .map((p, i) => {
+      const x = (i / (points.length - 1)) * 40;
+      const y = 12 - ((p.value - min) / (max - min)) * 10 + 1;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join("");
+}
+
 function AccountRail({
   active,
   onChange,
   allTotals,
   totals,
+  snapshots,
 }: {
   active: AccountFilter;
   onChange: (value: AccountFilter) => void;
   allTotals: ReturnType<typeof calculateTotals>;
   totals: Record<AccountGroup, ReturnType<typeof calculateTotals>>;
+  snapshots: DailySnapshot[];
 }) {
   const chips: {
     key: AccountFilter;
@@ -958,6 +1027,26 @@ function AccountRail({
             <b>{chip.label}</b>
             <small>{money.format(chip.values.value)}</small>
           </span>
+          {(() => {
+            const path = chipSparkPath(
+              snapshotPoints(snapshots, chip.key).slice(-30),
+            );
+            if (!path) return null;
+            return (
+              <svg
+                className="chip-spark"
+                viewBox="0 0 40 14"
+                aria-hidden="true"
+              >
+                <path
+                  d={path}
+                  fill="none"
+                  strokeWidth="1.5"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            );
+          })()}
           <em
             className={
               !chip.values.updated

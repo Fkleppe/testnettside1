@@ -4545,3 +4545,238 @@ footer small {
 .today-card .coverage small {
   color: var(--quiet);
 }
+
+/* Chip-sparklines + kontofarget valgring */
+.chip-spark {
+  width: 44px;
+  height: 15px;
+  margin-left: 4px;
+  color: color-mix(in oklab, var(--account-color, var(--positive)) 80%, white 8%);
+  stroke: currentColor;
+  opacity: 0.9;
+}
+.acct-chip.on {
+  border-top-color: color-mix(
+    in oklab,
+    var(--account-color, var(--positive)) 65%,
+    transparent
+  );
+  box-shadow:
+    inset 0 1px 2px rgb(255 255 255 / 0.07),
+    0 0 0 1px
+      color-mix(in oklab, var(--account-color, var(--positive)) 30%, transparent),
+    0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+/* Kostnadskortet */
+.dash-tri {
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+}
+.fees-total {
+  padding: 4px 20px 12px;
+}
+.fees-total strong {
+  font-size: 1.5rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+.fees-total small {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.fees-list {
+  border-top: 1px solid var(--line-soft);
+  padding: 6px 20px;
+}
+.fees-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.8125rem;
+}
+.fees-row:last-child {
+  border-bottom: 0;
+}
+.fees-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fees-row em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.75rem;
+}
+.fees-row b {
+  font-weight: 650;
+}
+.fees-note {
+  margin: 4px 20px 16px;
+  color: var(--quiet);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+
+/* ===== Temaer: data-theme på .app-shell (dark = default tokens) ===== */
+.app-shell[data-theme="light"] {
+  --page: oklch(96.8% 0.009 85);
+  --header: oklch(96.8% 0.009 85);
+  --surface: oklch(99.3% 0.004 90);
+  --surface-hover: oklch(95.8% 0.009 87);
+  --surface-active: oklch(92.5% 0.014 85);
+  --line: oklch(86.5% 0.014 85);
+  --line-soft: oklch(90.5% 0.011 85);
+  --text: oklch(23% 0.02 60);
+  --muted: oklch(47% 0.021 70);
+  --quiet: oklch(60% 0.018 75);
+  --positive: oklch(51% 0.13 155);
+  --negative: oklch(50% 0.18 27);
+  --warning: oklch(56% 0.12 75);
+  --blue: oklch(48% 0.16 255);
+  --account-private: oklch(52% 0.11 181);
+  --account-business: oklch(50% 0.14 264);
+  --account-family: oklch(57% 0.12 82);
+  --account-pension: oklch(50% 0.13 328);
+  background:
+    radial-gradient(
+      1100px 420px at 50% -160px,
+      oklch(90% 0.05 85 / 0.55),
+      transparent 70%
+    ),
+    var(--page);
+  color: var(--text);
+}
+.app-shell[data-theme="light"] .transfer,
+.app-shell[data-theme="light"] .add-small,
+.app-shell[data-theme="light"] .backup-row button {
+  border-top-color: oklch(35% 0.02 60 / 0.5);
+  background: oklch(25% 0.02 60);
+  color: oklch(97% 0.005 85);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.2),
+    inset 0 1px 2px rgb(255 255 255 / 0.15);
+}
+.app-shell[data-theme="light"] .accounts-card,
+.app-shell[data-theme="light"] .equity-card,
+.app-shell[data-theme="light"] .today-card,
+.app-shell[data-theme="light"] .data-card,
+.app-shell[data-theme="light"] .breakdown-card,
+.app-shell[data-theme="light"] .holdings-card,
+.app-shell[data-theme="light"] .forecast-card,
+.app-shell[data-theme="light"] .activity-card,
+.app-shell[data-theme="light"] .movers-card,
+.app-shell[data-theme="light"] .acct-chip {
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px oklch(30% 0.03 60 / 0.05),
+    0 10px 30px oklch(30% 0.03 60 / 0.06);
+}
+.app-shell[data-theme="light"] .today-card {
+  --muted: oklch(80% 0.03 150);
+  --quiet: oklch(72% 0.04 150);
+  border-top-color: oklch(45% 0.07 160 / 0.5);
+  background:
+    radial-gradient(
+      130% 140% at 100% 0%,
+      oklch(38% 0.07 165 / 0.9),
+      transparent 58%
+    ),
+    linear-gradient(165deg, oklch(30% 0.055 160), oklch(22% 0.035 160));
+  color: oklch(97% 0.01 120);
+}
+.app-shell[data-theme="light"] .history-value-line {
+  filter: none;
+}
+
+/* Nordlys: dyp indigo med teal/fiolett aurora */
+.app-shell[data-theme="nordlys"] {
+  --page: oklch(15% 0.03 285);
+  --header: oklch(12% 0.028 285);
+  --surface: oklch(20.5% 0.032 285);
+  --surface-hover: oklch(23.5% 0.035 285);
+  --surface-active: oklch(30% 0.04 285);
+  --line: oklch(30% 0.035 285);
+  --line-soft: oklch(25% 0.032 285);
+  --text: oklch(97% 0.01 260);
+  --muted: oklch(72% 0.03 275);
+  --quiet: oklch(56% 0.03 280);
+  --positive: oklch(80% 0.13 190);
+  --negative: oklch(70% 0.19 350);
+  --warning: oklch(80% 0.13 85);
+  --blue: oklch(70% 0.14 260);
+  --account-private: oklch(78% 0.12 190);
+  --account-business: oklch(72% 0.13 270);
+  --account-family: oklch(80% 0.12 85);
+  --account-pension: oklch(72% 0.15 320);
+  background:
+    radial-gradient(
+      900px 460px at 20% -140px,
+      oklch(50% 0.12 190 / 0.14),
+      transparent 65%
+    ),
+    radial-gradient(
+      900px 480px at 85% -160px,
+      oklch(50% 0.14 310 / 0.13),
+      transparent 65%
+    ),
+    var(--page);
+}
+.app-shell[data-theme="nordlys"] .today-card {
+  --muted: oklch(80% 0.04 220);
+  --quiet: oklch(72% 0.05 230);
+  border-top-color: oklch(85% 0.1 200 / 0.4);
+  background:
+    radial-gradient(
+      130% 140% at 100% 0%,
+      oklch(38% 0.09 230 / 0.9),
+      transparent 58%
+    ),
+    linear-gradient(165deg, oklch(28% 0.07 250), oklch(17% 0.04 270));
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.09),
+    0 14px 40px oklch(30% 0.08 250 / 0.45);
+}
+.app-shell[data-theme="nordlys"] .today-card .today-value strong.positive {
+  color: oklch(85% 0.13 195) !important;
+  text-shadow: 0 0 24px oklch(75% 0.15 200 / 0.4);
+}
+.app-shell[data-theme="nordlys"] .today-card .today-value b.positive {
+  background: oklch(85% 0.13 195 / 0.14);
+  color: oklch(87% 0.12 195) !important;
+}
+.app-shell[data-theme="nordlys"] .today-card .coverage i {
+  background: linear-gradient(90deg, oklch(72% 0.13 200), oklch(80% 0.13 300));
+  box-shadow: 0 0 12px oklch(75% 0.13 250 / 0.5);
+}
+
+/* Temavelger i headeren */
+.theme-switch {
+  display: inline-flex;
+  gap: 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: 11px;
+  padding: 2px;
+  background: color-mix(in oklab, var(--surface) 60%, transparent);
+}
+.theme-switch button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+}
+.theme-switch button:hover {
+  color: var(--text);
+}
+.theme-switch button.on {
+  background: var(--surface-active);
+  color: var(--text);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.07);
+}
