@@ -4442,3 +4442,106 @@ footer small {
   letter-spacing: -0.03em;
   font-weight: 720;
 }
+
+/* ===== Gloss på kontochips + rikere utviklingspanel ===== */
+.acct-chip {
+  border-top: 2px solid oklch(72% 0.005 150 / 0.3);
+  box-shadow:
+    inset 0 1px 2px rgb(255 255 255 / 0.05),
+    0 1px 2px rgb(0 0 0 / 0.3);
+  border-radius: 13px;
+}
+.acct-chip:hover {
+  box-shadow:
+    inset 0 1px 2px rgb(255 255 255 / 0.08),
+    0 1px 3px rgb(0 0 0 / 0.35);
+}
+.acct-chip.on {
+  border-top-color: color-mix(in oklab, var(--positive) 60%, transparent);
+  box-shadow:
+    inset 0 1px 2px rgb(255 255 255 / 0.07),
+    0 0 0 1px color-mix(in oklab, var(--positive) 26%, transparent),
+    0 1px 3px rgb(0 0 0 / 0.35);
+}
+.acct-chip:active {
+  transform: translateY(1px);
+}
+/* Utviklingspanelet: blekkgrønt gloss-panel med sheen, chip-% og glødemåler */
+.today-card {
+  --muted: oklch(78% 0.04 155);
+  --quiet: oklch(70% 0.05 155);
+  position: relative;
+  border: 1px solid transparent;
+  border-top: 2px solid oklch(85% 0.09 150 / 0.4);
+  background:
+    radial-gradient(
+      130% 140% at 100% 0%,
+      oklch(32% 0.075 165 / 0.9),
+      transparent 58%
+    ),
+    linear-gradient(165deg, oklch(24% 0.055 160), oklch(15% 0.028 160));
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.09),
+    0 14px 40px oklch(25% 0.06 160 / 0.45);
+  overflow: hidden;
+}
+.today-card::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  right: -20%;
+  width: 60%;
+  height: 160%;
+  background: linear-gradient(
+    115deg,
+    transparent,
+    rgb(255 255 255 / 0.045) 45%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+.today-card .card-title-row h2 {
+  color: oklch(97% 0.015 150);
+}
+.today-card .today-value strong {
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+}
+.today-card .today-value strong.positive {
+  color: oklch(85% 0.16 150) !important;
+  text-shadow: 0 0 24px oklch(75% 0.18 150 / 0.35);
+}
+.today-card .today-value b {
+  border-radius: 9px;
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+}
+.today-card .today-value b.positive {
+  background: oklch(85% 0.16 150 / 0.14);
+  color: oklch(86% 0.15 150) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+}
+.today-card .today-value b.negative {
+  background: color-mix(in oklab, var(--negative) 16%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+.today-card .coverage > span {
+  height: 7px;
+  border-radius: 5px;
+  background: oklch(30% 0.04 160);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.4);
+}
+.today-card .coverage i {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    oklch(70% 0.15 155),
+    oklch(85% 0.17 145)
+  );
+  box-shadow: 0 0 12px oklch(80% 0.17 150 / 0.55);
+}
+.today-card .coverage small {
+  color: var(--quiet);
+}
