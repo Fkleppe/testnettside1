@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Pencil, Target } from "lucide-react";
 import type { SavingsGoal } from "@/lib/types";
+import type { DailySnapshot } from "@/lib/history";
+import { goalProjection } from "@/lib/goal";
 
 const money = new Intl.NumberFormat("nb-NO", {
   style: "currency",
@@ -15,11 +17,13 @@ const money = new Intl.NumberFormat("nb-NO", {
 export function GoalCard({
   goal,
   currentValue,
+  snapshots,
   editable,
   onChange,
 }: {
   goal: SavingsGoal | null;
   currentValue: number;
+  snapshots: DailySnapshot[];
   editable: boolean;
   onChange: (goal: SavingsGoal) => void;
 }) {
@@ -95,6 +99,7 @@ export function GoalCard({
   }
 
   const progress = Math.min(100, (currentValue / active!.amount) * 100);
+  const projection = goalProjection(snapshots, currentValue, active!.amount);
   return (
     <section className="movers-card goal-card">
       <div className="card-title-row">
@@ -122,8 +127,14 @@ export function GoalCard({
         </span>
         <small>
           {money.format(currentValue)} av {money.format(active!.amount)}
-          {progress >= 100 ? " · Målet er nådd! 🎯" : ""}
+          {progress >= 100 ? " · Målet er nådd!" : ""}
         </small>
+        {projection.remaining > 0 ? (
+          <span className="goal-eta">
+            <b>Mangler {money.format(projection.remaining)}</b>
+            {projection.etaLabel ? <em>{projection.etaLabel}</em> : null}
+          </span>
+        ) : null}
       </div>
     </section>
   );

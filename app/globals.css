@@ -5382,3 +5382,199 @@ body {
     --mobile-pad: 12px;
   }
 }
+
+
+/* ── Designrunde 06.08: graf-akser, samlet tab-språk, monogram, inngang ── */
+
+/* Gridlinjer med kompakte beløpsetiketter */
+.history-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: color-mix(in oklab, var(--line-soft) 70%, transparent);
+  pointer-events: none;
+}
+.history-gridline em {
+  position: absolute;
+  right: 6px;
+  top: -14px;
+  font-style: normal;
+  font-size: 0.625rem;
+  color: var(--quiet);
+  letter-spacing: 0.02em;
+}
+
+/* Tidsakse under grafen */
+.history-xaxis {
+  position: relative;
+  height: 16px;
+  margin-top: 6px;
+}
+.history-xaxis span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.625rem;
+  color: var(--quiet);
+  white-space: nowrap;
+}
+.history-xaxis span.start {
+  transform: none;
+}
+.history-xaxis span.end {
+  transform: translateX(-100%);
+}
+
+/* Legenden flyttet under grafen; Indeks bor der som toggle */
+.history-legend.under {
+  position: static;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 8px 2px 0;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.history-legend.under .history-bench-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--quiet);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 7px;
+}
+.history-legend.under .history-bench-toggle:hover {
+  color: var(--text);
+}
+.history-legend.under .history-bench-toggle.on {
+  color: var(--text);
+}
+.history-legend.under .history-bench-toggle:not(.on) .bench {
+  opacity: 0.35;
+}
+.history-legend.under .history-provenance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--quiet);
+  font-size: 0.65rem;
+  cursor: help;
+}
+
+/* Ett tab-språk: grafintervaller og PnL-faner deler samme oppskrift */
+.history-ranges [role="tablist"] button,
+.pnl-tabs button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  line-height: 1.2;
+}
+.history-ranges [role="tablist"] button:hover,
+.pnl-tabs button:hover {
+  color: var(--text);
+}
+.history-ranges [role="tablist"] button.selected,
+.history-ranges [role="tablist"] button[aria-selected="true"],
+.pnl-tabs button.on {
+  background: var(--surface-active);
+  border-color: var(--line-soft);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.07);
+}
+
+/* Monogram-ikoner i beholdningslisten */
+.asset-icon.monogram b {
+  font-size: 0.6875rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+/* Sparemål: mangler + ETA */
+.goal-eta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+.goal-eta b {
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+.goal-eta em {
+  font-style: normal;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+/* Datakvalitet: kompakt alt-vel-tilstand */
+.quality-expand {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+.quality-compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 20px 16px;
+}
+.quality-compact p {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.quality-compact b {
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+.quality-compact small {
+  color: var(--muted);
+  font-size: 0.6875rem;
+}
+
+/* Rolig inngang: kun transform (opacity utsetter LCP), respekterer
+   redusert bevegelse */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes dash-rise {
+    from {
+      transform: translateY(14px);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  .dash-hero,
+  .dash-side > *,
+  .dash-tri > * {
+    animation: dash-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .dash-side > *:nth-child(1) { animation-delay: 0.05s; }
+  .dash-side > *:nth-child(2) { animation-delay: 0.1s; }
+  .dash-side > *:nth-child(3) { animation-delay: 0.15s; }
+  .dash-side > *:nth-child(4) { animation-delay: 0.2s; }
+  .dash-tri > *:nth-child(1) { animation-delay: 0.12s; }
+  .dash-tri > *:nth-child(2) { animation-delay: 0.17s; }
+  .dash-tri > *:nth-child(3) { animation-delay: 0.22s; }
+  .dash-tri > *:nth-child(4) { animation-delay: 0.27s; }
+}

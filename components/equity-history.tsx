@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
+import { Info } from "lucide-react";
 import {
   filterRange,
   type HistoryPoint,
@@ -12,11 +13,25 @@ const money = new Intl.NumberFormat("nb-NO", {
   currency: "NOK",
   maximumFractionDigits: 0,
 });
+const compact = new Intl.NumberFormat("nb-NO", {
+  notation: "compact",
+  maximumFractionDigits: 2,
+});
 const tooltipDate = new Intl.DateTimeFormat("nb-NO", {
   weekday: "short",
   day: "numeric",
   month: "short",
   year: "numeric",
+  timeZone: "UTC",
+});
+const dayMonth = new Intl.DateTimeFormat("nb-NO", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+const monthYear = new Intl.DateTimeFormat("nb-NO", {
+  month: "short",
+  year: "2-digit",
   timeZone: "UTC",
 });
 
@@ -159,8 +174,31 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
         .filter((c): c is { x: number; y: number } => c !== null);
       if (benchCoords.length > 1) benchLine = toPath(benchCoords);
     }
-    return { coords, line, costLine, area, min, max, change, benchLine };
-  }, [visible, showBench, bench]);
+
+    // Gridlinjer på kvartilene av verdiområdet, med kompakte beløpsetiketter.
+    const yTicks = [0.25, 0.5, 0.75].map((f) => ({
+      pct: PAD_TOP + (1 - f) * usable,
+      value: min + f * (max - min),
+    }));
+    // 4 datoetiketter jevnt over tidsspennet; format følger intervallet.
+    const formatter = range === "1y" || range === "max" ? monthYear : dayMonth;
+    const xTicks = [0, 1 / 3, 2 / 3, 1].map((f) => {
+      const t = t0 + f * span;
+      return { pct: f * 100, label: formatter.format(t) };
+    });
+    return {
+      coords,
+      line,
+      costLine,
+      area,
+      min,
+      max,
+      change,
+      benchLine,
+      yTicks,
+      xTicks,
+    };
+  }, [visible, showBench, bench, range]);
 
   const onMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!geometry) return;
@@ -229,6 +267,7 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
   const positive = geometry ? geometry.change >= 0 : true;
   const color = positive ? "var(--positive)" : "var(--negative)";
   const hovered = hover && geometry ? visible[hover.index] : null;
+  const hasRec = visible.some((point) => point.origin === "rec");
 
   return (
     <div className="equity-history">
@@ -247,22 +286,7 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
             </button>
           ))}
         </div>
-        <button
-          className={`history-bench-toggle ${showBench ? "on" : ""}`}
-          aria-pressed={showBench}
-          onClick={() => setShowBench((value) => !value)}
-        >
-          Indeks
-        </button>
         <span className="history-flex-spacer" />
-        {visible.some((point) => point.origin === "rec") ? (
-          <span
-            className="history-provenance"
-            title="Beregnet fra dagens beholdning × ekte kurshistorikk. Observerte daglige punkter tar over etter hvert."
-          >
-            Delvis rekonstruert
-          </span>
-        ) : null}
         {geometry ? (
           <b className={positive ? "positive" : "negative"}>
             {signedPercent((geometry.change / (visible[0].value || 1)) * 100)} ·{" "}
@@ -275,13 +299,19 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
       >
-        <div className="history-grid" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </div>
         {geometry ? (
           <>
+            <div className="history-grid" aria-hidden="true">
+              {geometry.yTicks.map((tick) => (
+                <span
+                  key={tick.pct}
+                  className="history-gridline"
+                  style={{ top: `${tick.pct}%` }}
+                >
+                  <em>{compact.format(tick.value)}</em>
+                </span>
+              ))}
+            </div>
             <svg
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
@@ -333,21 +363,6 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
               }}
               aria-hidden="true"
             />
-            <div className="history-legend" aria-hidden="true">
-              <span>
-                <i style={{ background: color }} /> Verdi
-              </span>
-              <span>
-                <i className="cost" /> Investert
-              </span>
-              {geometry.benchLine ? (
-                <span>
-                  <i className="bench" /> Verdensindeks
-                </span>
-              ) : null}
-            </div>
-            <span className="axis-label min">{money.format(geometry.min)}</span>
-            <span className="axis-label max">{money.format(geometry.max)}</span>
             {hover && hovered ? (
               <>
                 <i
@@ -394,6 +409,51 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
           </div>
         )}
       </div>
+      {geometry ? (
+        <div className="history-xaxis" aria-hidden="true">
+          {geometry.xTicks.map((tick, index) => (
+            <span
+              key={tick.pct}
+              style={{ left: `${tick.pct}%` }}
+              className={
+                index === 0
+                  ? "start"
+                  : index === geometry.xTicks.length - 1
+                    ? "end"
+                    : undefined
+              }
+            >
+              {tick.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {geometry ? (
+        <div className="history-legend under" aria-hidden="false">
+          <span>
+            <i style={{ background: color }} /> Verdi
+          </span>
+          <span>
+            <i className="cost" /> Investert
+          </span>
+          <button
+            type="button"
+            className={`history-bench-toggle ${showBench ? "on" : ""}`}
+            aria-pressed={showBench}
+            onClick={() => setShowBench((value) => !value)}
+          >
+            <i className="bench" /> Verdensindeks
+          </button>
+          {hasRec ? (
+            <span
+              className="history-provenance"
+              title="Deler av grafen er beregnet fra dagens beholdning × ekte kurshistorikk. Observerte daglige punkter tar over etter hvert."
+            >
+              <Info size={11} /> Delvis rekonstruert
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

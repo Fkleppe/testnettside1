@@ -873,6 +873,7 @@ export function Portfolio() {
             <GoalCard
               goal={goal}
               currentValue={allTotals.value}
+              snapshots={dataState === "user" ? snapshots : []}
               editable={dataState === "user"}
               onChange={(next) => {
                 claimOwnership();
@@ -1393,6 +1394,7 @@ function TodayPanel({
 }
 
 function DataPanel({ holdings }: { holdings: Holding[] }) {
+  const [expanded, setExpanded] = useState(false);
   const states = holdings.map((item) => getQuoteState(item));
   const current = holdings.filter(hasCalendarDayChange).length;
   const normal = states.filter(
@@ -1405,6 +1407,8 @@ function DataPanel({ holdings }: { holdings: Holding[] }) {
   const manual = states.filter(
     (state) => state.code === "manual_override",
   ).length;
+  const allGood = late === 0 && holdings.length > 0;
+  const collapsed = allGood && !expanded;
   return (
     <section className="data-card" id="datakilder">
       <div className="card-title-row">
@@ -1412,7 +1416,36 @@ function DataPanel({ holdings }: { holdings: Holding[] }) {
           <h2>Datakvalitet</h2>
           <span>Hva tallene faktisk bygger på</span>
         </div>
+        {allGood ? (
+          <button
+            className="quality-expand"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Vis detaljer" : "Skjul detaljer"}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            <ChevronDown
+              size={13}
+              style={collapsed ? undefined : { transform: "rotate(180deg)" }}
+            />
+          </button>
+        ) : null}
       </div>
+      {collapsed ? (
+        <div className="quality-compact">
+          <span className="quality-dot live" />
+          <p>
+            <b>
+              {current === holdings.length
+                ? "Alle kurser oppdatert i dag"
+                : `Ingen kilder etter fristen`}
+            </b>
+            <small>
+              {current} av {holdings.length} med dagens utvikling
+              {manual ? ` · ${manual} manuell${manual > 1 ? "e" : ""}` : ""}
+            </small>
+          </p>
+        </div>
+      ) : (
       <div className="quality-list">
         {(
           [
@@ -1431,21 +1464,24 @@ function DataPanel({ holdings }: { holdings: Holding[] }) {
           </div>
         ))}
       </div>
-      <div className={`quality-message ${late ? "has-warning" : ""}`}>
-        <CircleHelp size={22} />
-        <p>
-          <b>
-            {late
-              ? "En datakilde er etter normalfristen."
-              : "Manglende fondskurs er ikke alltid forsinket."}
-          </b>
-          <span>
-            {late
-              ? "Åpne beholdningen for å se hvilken NAV-dato som mangler."
-              : "Vi viser forventet publisering og varsler først når fristen faktisk er passert."}
-          </span>
-        </p>
-      </div>
+      )}
+      {collapsed ? null : (
+        <div className={`quality-message ${late ? "has-warning" : ""}`}>
+          <CircleHelp size={22} />
+          <p>
+            <b>
+              {late
+                ? "En datakilde er etter normalfristen."
+                : "Manglende fondskurs er ikke alltid forsinket."}
+            </b>
+            <span>
+              {late
+                ? "Åpne beholdningen for å se hvilken NAV-dato som mangler."
+                : "Vi viser forventet publisering og varsler først når fristen faktisk er passert."}
+            </span>
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -2069,6 +2105,13 @@ function HoldingRow({
   const Icon = kindIcon[item.kind];
   const value = holdingValue(item);
   const account = getAccount(item);
+  const monogram = item.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
   const today = dailyValue(item);
   const hasDaily = hasCalendarDayChange(item);
   const dailyPercent = holdingDailyPercent(item);
@@ -2080,8 +2123,8 @@ function HoldingRow({
   return (
     <article className={`holding-row ${advanced ? "is-editable" : ""}`}>
       <div className="asset-main">
-        <div className={`asset-icon ${item.kind}`}>
-          <Icon size={17} />
+        <div className={`asset-icon monogram ${item.kind}`}>
+          {monogram.length >= 1 ? <b>{monogram}</b> : <Icon size={17} />}
         </div>
         <div>
           <h3>{item.name}</h3>
