@@ -5291,6 +5291,11 @@ footer small {
 
 /* Mobil: ASK-checkbox naturlig størrelse (panel-input-regelen ga 100 % bredde)
    + større tap-mål for tommel på små kontroller */
+.panel .ask-toggle {
+  flex-direction: row;
+  align-items: center;
+  text-align: left;
+}
 .panel .ask-toggle input {
   width: 18px;
   height: 18px;
