@@ -75,12 +75,14 @@ import {
   addPurchase,
   calculateTotals,
   dailyValue,
+  formatDateKey,
   getQuoteState,
   hasCalendarDayChange,
   holdingDailyPercent,
   holdingValue,
   migrateHolding,
 } from "@/lib/portfolio";
+import { localDateKey } from "@/lib/history";
 import type {
   AccountGroup,
   AssetKind,
@@ -938,7 +940,7 @@ function EquityPanel({
           </span>
           <h2>{money.format(totals.value).replace("kr", "NOK")}</h2>
           <p>
-            Dagens utvikling{" "}
+            {changeLabel(totals)}{" "}
             <b
               className={
                 !totals.updated
@@ -964,7 +966,13 @@ function EquityPanel({
       <EquityHistory points={historyPoints} />
       <div className="range-row">
         <div className="selected">
-          <span>I dag</span>
+          <span>
+            {totals.updated &&
+            totals.changeDate &&
+            totals.changeDate < localDateKey(new Date())
+              ? formatDateKey(totals.changeDate)
+              : "I dag"}
+          </span>
           <b
             className={
               !totals.updated
@@ -1006,7 +1014,7 @@ function TodayPanel({
   return (
     <section className="today-card">
       <div className="card-title-row">
-        <h2>Dagens utvikling</h2>
+        <h2>{changeLabel(totals)}</h2>
         <Clock3 size={16} />
       </div>
       <div className="today-value">
@@ -2746,6 +2754,15 @@ function EditPanel({
       </aside>
     </div>
   );
+}
+
+/** «Dagens utvikling» er bare ærlig når kursdatoen er dagens kalenderdag.
+ *  For fond (NAV T+1/T+2) merkes endringen med datoen den gjelder. */
+function changeLabel(totals: ReturnType<typeof calculateTotals>) {
+  if (!totals.updated || !totals.changeDate) return "Dagens utvikling";
+  return totals.changeDate < localDateKey(new Date())
+    ? `Utvikling ${formatDateKey(totals.changeDate)} (siste NAV)`
+    : "Dagens utvikling";
 }
 
 function getAccount(item: Holding): AccountGroup {

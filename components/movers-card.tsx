@@ -6,6 +6,8 @@ import {
   hasCalendarDayChange,
   holdingDailyPercent,
 } from "@/lib/portfolio";
+import { localDateKey } from "@/lib/history";
+import { formatDateKey } from "@/lib/portfolio";
 import type { Holding } from "@/lib/types";
 
 const money = new Intl.NumberFormat("nb-NO", {
@@ -63,7 +65,16 @@ export function MoversCard({ holdings }: { holdings: Holding[] }) {
   return (
     <section className="movers-card">
       <div className="card-title-row">
-        <h2>Dagens bevegelser</h2>
+        <h2>
+          {movers.some(
+            ({ item }) =>
+              item.changePeriod !== "24h" &&
+              item.priceDate &&
+              item.priceDate < localDateKey(new Date()),
+          )
+            ? "Siste bevegelser"
+            : "Dagens bevegelser"}
+        </h2>
         <span className="card-context">Størst utslag</span>
       </div>
       <div className="movers-list">
@@ -80,7 +91,12 @@ export function MoversCard({ holdings }: { holdings: Holding[] }) {
               <b>{item.name}</b>
               <small>
                 {item.platform}
-                {item.changePeriod === "24h" ? " · 24 t" : ""}
+                {item.changePeriod === "24h"
+                  ? " · 24 t"
+                  : item.priceDate &&
+                      item.priceDate < localDateKey(new Date())
+                    ? ` · NAV ${formatDateKey(item.priceDate)}`
+                    : ""}
               </small>
             </span>
             <em>

@@ -115,7 +115,17 @@ export function calculateTotals(items: Holding[]) {
     0,
   );
   const previousCoveredValue = coveredValue - today;
+  // Seneste kursdato blant bidragene: styrer om endringen kan kalles
+  // «i dag» eller må merkes med NAV-datoen den faktisk gjelder.
+  const changeDate = covered.reduce<string | null>(
+    (latest, item) =>
+      item.priceDate && (!latest || item.priceDate > latest)
+        ? item.priceDate
+        : latest,
+    null,
+  );
   return {
+    changeDate,
     value,
     cost,
     today,
@@ -361,7 +371,7 @@ function nextValueDayAfter(priceDate: string, latestValueDay: string) {
   return undefined;
 }
 
-function formatDateKey(key: string) {
+export function formatDateKey(key: string) {
   return dateLabel.format(dateFromKey(key)).replace(".", "");
 }
 
