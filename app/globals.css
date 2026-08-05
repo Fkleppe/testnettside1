@@ -4299,3 +4299,86 @@ footer small {
     inset 0 1px 2px rgb(255 255 255 / 0.08),
     0 0 0 1px color-mix(in oklab, var(--positive) 30%, transparent);
 }
+
+/* ===== Minimal-signaturen utvidet til ALLE knapper og bokser ===== */
+/* Sekundær-skin på alle pill-/panelknapper */
+.economy-tabs button,
+.economy-tabs a,
+.history-ranges button,
+.breakdown-mode button,
+.forecast-card .period-button,
+.safety-actions button,
+.backup-row button,
+.advanced-notice button,
+.advanced-notice a,
+.holdings-controls label,
+.account-actions button {
+  border: 1px solid transparent;
+  border-top: 2px solid oklch(70% 0.005 150 / 0.28);
+  background: var(--surface-active);
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / 0.05);
+  border-radius: 11px;
+  transition:
+    background 0.2s ease-out,
+    box-shadow 0.2s ease-out,
+    transform 0.1s ease-out;
+}
+.economy-tabs button:hover,
+.economy-tabs a:hover,
+.history-ranges button:hover,
+.breakdown-mode button:hover,
+.forecast-card .period-button:hover,
+.safety-actions button:hover,
+.backup-row button:hover,
+.advanced-notice button:hover {
+  background: color-mix(in oklab, var(--surface-active) 82%, oklch(80% 0 0));
+}
+.safety-actions button:active,
+.backup-row button:active,
+.advanced-notice button:active {
+  transform: translateY(1px);
+}
+/* Ikke-valgte tabs/pills skal være rolige — kun valgt får skin */
+.economy-tabs button:not(.active),
+.economy-tabs a:not(.active),
+.history-ranges button:not(.selected):not([aria-selected="true"]),
+.breakdown-mode button:not(.on) {
+  border-top-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.history-ranges button[aria-selected="true"],
+.economy-tabs .active,
+.breakdown-mode button.on {
+  border-top: 2px solid oklch(70% 0.005 150 / 0.32);
+  background: var(--surface-active);
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / 0.06);
+}
+/* Gjenopprett/primærhandlinger i paneler */
+.backup-row button {
+  border-top: 2px solid oklch(100% 0 0 / 0.45);
+  background: oklch(93% 0.004 150);
+  color: oklch(16% 0.01 150);
+  font-weight: 700;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.3),
+    inset 0 1px 1px rgb(255 255 255 / 0.75);
+}
+.backup-row button:hover {
+  background: oklch(87% 0.007 150);
+}
+/* Bokser: innfelt topp-hårlinje gir samme «maskinerte» følelse */
+.accounts-card,
+.equity-card,
+.today-card,
+.data-card,
+.breakdown-card,
+.holdings-card,
+.forecast-card,
+.activity-card,
+.movers-card {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.045);
+}
+.acct-chip {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
