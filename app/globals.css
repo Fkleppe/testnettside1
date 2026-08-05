@@ -5287,3 +5287,39 @@ footer small {
 .tax-row.tax-info b {
   font-weight: 600;
 }
+
+
+/* Mobil: ASK-checkbox naturlig størrelse (panel-input-regelen ga 100 % bredde)
+   + større tap-mål for tommel på små kontroller */
+.panel .ask-toggle input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  flex: 0 0 auto;
+}
+@media (max-width: 900px) {
+  .history-ranges [role="tablist"] button,
+  .history-bench-toggle {
+    padding: 8px 12px;
+  }
+  .pnl-tabs button {
+    padding: 8px 11px;
+  }
+  .theme-switch button {
+    min-width: 34px;
+    min-height: 32px;
+  }
+  .goal-edit {
+    width: 32px;
+    height: 32px;
+  }
+  .pnl-download {
+    width: 36px;
+    height: 36px;
+  }
+  .tax-fee-edit {
+    width: 26px;
+    height: 26px;
+  }
+}
