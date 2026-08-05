@@ -2014,7 +2014,7 @@ function HoldingSpark({ item }: { item: Holding }) {
     };
   }, [item.kind, item.symbol, item.mode]);
   if (!points || points.length < 5) {
-    return <span className="asset-trend empty" aria-hidden="true" />;
+    return <span className="asset-trend is-empty" aria-hidden="true" />;
   }
   const prices = points.map((point) => point.price);
   let min = Math.min(...prices);

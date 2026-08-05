@@ -5124,9 +5124,6 @@ footer small {
   height: 100%;
   display: block;
 }
-.asset-trend.empty {
-  display: block;
-}
 .asset-return {
   text-align: right;
   display: flex;
