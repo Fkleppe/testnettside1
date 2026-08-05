@@ -35,27 +35,28 @@ const remote = (
   holdings: Holding[],
   savedAt: string | null,
   snapshots: DailySnapshot[] = [],
-): RemoteSnapshot => ({ exists: true, savedAt, holdings, events: [], snapshots });
+): RemoteSnapshot => ({ exists: true, savedAt, holdings, events: [], snapshots, goal: null });
 
 describe("decideMerge", () => {
   it("pushes local when remote is empty", () => {
     const decision = decideMerge(
       {
         savedAt: "2026-08-04T09:00:00Z",
-        data: { holdings: [holding("a")], events: [], snapshots: [] },
+        data: { holdings: [holding("a")], events: [], snapshots: [], goal: null },
       },
-      { exists: false, savedAt: null, holdings: [], events: [], snapshots: [] },
+      { exists: false, savedAt: null, holdings: [], events: [], snapshots: [], goal: null },
     );
     expect(decision).toEqual({
       action: "keep-local",
       pushLocal: true,
       snapshots: [],
+      goal: null,
     });
   });
 
   it("takes remote when local is empty, without backup", () => {
     const decision = decideMerge(
-      { savedAt: null, data: { holdings: [], events: [], snapshots: [] } },
+      { savedAt: null, data: { holdings: [], events: [], snapshots: [], goal: null } },
       remote([holding("r")], "2026-08-04T09:00:00Z"),
     );
     expect(decision.action).toBe("take-remote");
@@ -68,7 +69,7 @@ describe("decideMerge", () => {
     const newerRemote = decideMerge(
       {
         savedAt: "2026-08-04T08:00:00Z",
-        data: { holdings: [holding("l")], events: [], snapshots: [] },
+        data: { holdings: [holding("l")], events: [], snapshots: [], goal: null },
       },
       remote([holding("r")], "2026-08-04T09:00:00Z"),
     );
@@ -80,7 +81,7 @@ describe("decideMerge", () => {
     const newerLocal = decideMerge(
       {
         savedAt: "2026-08-04T10:00:00Z",
-        data: { holdings: [holding("l")], events: [], snapshots: [] },
+        data: { holdings: [holding("l")], events: [], snapshots: [], goal: null },
       },
       remote([holding("r")], "2026-08-04T09:00:00Z"),
     );
@@ -95,7 +96,7 @@ describe("decideMerge", () => {
     const emptyLocal = decideMerge(
       {
         savedAt: "2026-08-04T10:00:00Z",
-        data: { holdings: [], events: [], snapshots: [] },
+        data: { holdings: [], events: [], snapshots: [], goal: null },
       },
       remote([holding("r")], "2026-08-04T09:00:00Z"),
     );
@@ -104,7 +105,7 @@ describe("decideMerge", () => {
     const emptyRemote = decideMerge(
       {
         savedAt: "2026-08-04T08:00:00Z",
-        data: { holdings: [holding("l")], events: [], snapshots: [] },
+        data: { holdings: [holding("l")], events: [], snapshots: [], goal: null },
       },
       remote([], "2026-08-04T09:00:00Z"),
     );
@@ -122,7 +123,7 @@ describe("decideMerge", () => {
     const keepLocal = decideMerge(
       {
         savedAt: "2026-08-04T10:00:00Z",
-        data: { holdings: [holding("l")], events: [], snapshots: localSnapshots },
+        data: { holdings: [holding("l")], events: [], snapshots: localSnapshots, goal: null },
       },
       remote([holding("r")], "2026-08-04T09:00:00Z", remoteSnapshots),
     );
@@ -136,7 +137,7 @@ describe("decideMerge", () => {
     const takeRemote = decideMerge(
       {
         savedAt: "2026-08-04T08:00:00Z",
-        data: { holdings: [holding("l")], events: [], snapshots: localSnapshots },
+        data: { holdings: [holding("l")], events: [], snapshots: localSnapshots, goal: null },
       },
       remote([holding("r")], "2026-08-04T09:00:00Z", remoteSnapshots),
     );
@@ -152,6 +153,7 @@ describe("decideMerge", () => {
           holdings: [holding("l")],
           events: [],
           snapshots: [snapshot("2026-08-01", 100, "2026-08-01T10:00:00Z")],
+          goal: null,
         },
       },
       remote([holding("r")], "2026-08-04T09:00:00Z", [

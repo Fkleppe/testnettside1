@@ -87,6 +87,21 @@ export function upsertDailySnapshot(
   if (holdings.length === 0) return snapshots;
   const next = buildSnapshot(holdings, now);
   const existingIndex = snapshots.findIndex((item) => item.date === next.date);
+  // Halvlastet-vakt: et ekte markedsfall endrer aldri KOSTPRISEN. Kollapser
+  // både verdi OG kost mot et allerede lagret punkt samme dag, er
+  // beholdningslisten ufullstendig (delvis synk/lasting) — behold det gode
+  // punktet. Bevisste salg rammes ikke: neste dag aksepteres ny virkelighet.
+  if (existingIndex >= 0) {
+    const existing = snapshots[existingIndex];
+    if (
+      existing.origin !== "rec" &&
+      existing.cost > 0 &&
+      next.cost < existing.cost * 0.6 &&
+      next.value < existing.value * 0.6
+    ) {
+      return snapshots;
+    }
+  }
   if (existingIndex >= 0 && sameNumbers(snapshots[existingIndex], next)) {
     return snapshots;
   }

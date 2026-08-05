@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { mergeSnapshots, type DailySnapshot } from "./history";
-import type { Holding, PortfolioEvent } from "./types";
+import type { Holding, PortfolioEvent, SavingsGoal } from "./types";
 
 const DATA_KEY = "min-sparing-data-v2";
 const LEGACY_HOLDINGS_KEY = "min-sparing-holdings-v1";
@@ -69,18 +69,43 @@ const snapshotSchema = z
   })
   .passthrough();
 
+const goalSchema = z
+  .object({
+    amount: z.number().finite().min(0),
+    label: z.string().max(80).optional(),
+    setAt: z.string(),
+  })
+  .passthrough();
+
 const envelopeSchema = z.object({
   v: z.literal(2),
   savedAt: z.string(),
   holdings: z.array(z.unknown()),
   events: z.array(z.unknown()),
   snapshots: z.array(z.unknown()).optional(),
+  goal: z.unknown().optional(),
 });
+
+function salvageGoal(raw: unknown): SavingsGoal | null {
+  const parsed = goalSchema.safeParse(raw);
+  return parsed.success ? (parsed.data as SavingsGoal) : null;
+}
+
+/** Nyeste setAt vinner — gravstein (amount 0) er også et gyldig «nyeste». */
+export function pickGoal(
+  a: SavingsGoal | null,
+  b: SavingsGoal | null,
+): SavingsGoal | null {
+  if (!a) return b;
+  if (!b) return a;
+  return b.setAt > a.setAt ? b : a;
+}
 
 export type PortfolioData = {
   holdings: Holding[];
   events: PortfolioEvent[];
   snapshots: DailySnapshot[];
+  goal: SavingsGoal | null;
 };
 
 export type LoadResult =
@@ -207,6 +232,7 @@ export function loadPortfolio(
           holdings: holdings.valid,
           events: events.valid,
           snapshots,
+          goal: salvageGoal(envelope.goal),
         },
         savedAt: envelope.savedAt,
         droppedItems: holdings.dropped + events.dropped,
@@ -242,7 +268,7 @@ export function loadPortfolio(
       }
       return {
         status: "recovered-legacy",
-        data: { holdings: holdings.valid, events, snapshots: [] },
+        data: { holdings: holdings.valid, events, snapshots: [], goal: null },
         savedAt: null,
         droppedItems: holdings.dropped,
       };
@@ -293,6 +319,7 @@ export function savePortfolio(
             (item) => item.origin !== "rec",
           ),
         );
+        data = { ...data, goal: pickGoal(data.goal, salvageGoal(existing.goal)) };
       }
     } catch {
       preserveCorrupt(store, existingRaw, now);
@@ -414,6 +441,7 @@ export function restoreBackup(
       holdings: holdings.valid,
       events: events.valid,
       snapshots: salvageSnapshots(envelope.snapshots),
+      goal: salvageGoal(envelope.goal),
     };
   } catch {
     return null;
@@ -432,6 +460,7 @@ const importSchema = z.object({
   holdings: z.array(z.unknown()),
   events: z.array(z.unknown()).optional(),
   snapshots: z.array(z.unknown()).optional(),
+  goal: z.unknown().optional(),
 });
 
 export type ImportResult =
@@ -465,6 +494,7 @@ export function parseImportedJson(text: string): ImportResult {
       holdings: holdings.valid,
       events: events.valid,
       snapshots: salvageSnapshots(root.data.snapshots),
+      goal: salvageGoal(root.data.goal),
     },
     droppedItems: holdings.dropped + events.dropped,
   };
@@ -489,6 +519,7 @@ export function validatePortfolioData(input: unknown):
       holdings: holdings.valid,
       events: events.valid,
       snapshots: salvageSnapshots(root.data.snapshots),
+      goal: salvageGoal(root.data.goal),
     },
     droppedItems: holdings.dropped + events.dropped,
   };

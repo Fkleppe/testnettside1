@@ -47,7 +47,7 @@ describe("loadPortfolio", () => {
 
   it("round-trips saved data", () => {
     const store = fakeStorage();
-    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: null,
     });
     const result = loadPortfolio(store);
@@ -66,7 +66,7 @@ describe("loadPortfolio", () => {
     };
     savePortfolio(
       store,
-      { holdings: [holding], events: [], snapshots: [snapshot as never] },
+      { holdings: [holding], events: [], snapshots: [snapshot as never], goal: null },
       { lastSeenSavedAt: null },
     );
     const result = loadPortfolio(store);
@@ -87,13 +87,13 @@ describe("loadPortfolio", () => {
     };
     savePortfolio(
       store,
-      { holdings: [holding], events: [], snapshots: [snapshot as never] },
+      { holdings: [holding], events: [], snapshots: [snapshot as never], goal: null },
       { lastSeenSavedAt: null },
     );
     // Simulerer gammel klient: skriver samme portefølje UTEN snapshots.
     savePortfolio(
       store,
-      { holdings: [holding], events: [], snapshots: [] },
+      { holdings: [holding], events: [], snapshots: [], goal: null },
       { lastSeenSavedAt: null },
     );
     const result = loadPortfolio(store);
@@ -113,12 +113,12 @@ describe("loadPortfolio", () => {
     };
     savePortfolio(
       store,
-      { holdings: [holding], events: [], snapshots: [snapshot as never] },
+      { holdings: [holding], events: [], snapshots: [snapshot as never], goal: null },
       { lastSeenSavedAt: null },
     );
     savePortfolio(
       store,
-      { holdings: [], events: [], snapshots: [] },
+      { holdings: [], events: [], snapshots: [], goal: null },
       { lastSeenSavedAt: null },
     );
     const result = loadPortfolio(store);
@@ -219,16 +219,16 @@ describe("loadPortfolio", () => {
 describe("savePortfolio", () => {
   it("backs up a foreign write before overwriting it", () => {
     const store = fakeStorage();
-    const mine = savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
+    const mine = savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T08:00:00Z"),
     });
     const foreign = { ...holding, id: "other-tab", name: "Annen fane" };
-    savePortfolio(store, { holdings: [foreign], events: [], snapshots: [] }, {
+    savePortfolio(store, { holdings: [foreign], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T09:00:00Z"),
     });
-    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: mine,
       now: new Date("2026-08-04T10:00:00Z"),
     });
@@ -241,15 +241,15 @@ describe("savePortfolio", () => {
 
   it("writes rolling backups at most every six hours", () => {
     const store = fakeStorage();
-    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T08:00:00Z"),
     });
-    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T09:00:00Z"),
     });
-    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: null,
       now: new Date("2026-08-04T15:00:00Z"),
     });
@@ -258,7 +258,7 @@ describe("savePortfolio", () => {
 
   it("never writes backups of an empty portfolio", () => {
     const store = fakeStorage();
-    savePortfolio(store, { holdings: [], events: [], snapshots: [] }, {
+    savePortfolio(store, { holdings: [], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: null,
     });
     expect(listBackups(store)).toHaveLength(0);
@@ -268,7 +268,7 @@ describe("savePortfolio", () => {
 describe("backup restore and import", () => {
   it("restores a backup", () => {
     const store = fakeStorage();
-    savePortfolio(store, { holdings: [holding], events: [], snapshots: [] }, {
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: null }, {
       lastSeenSavedAt: null,
     });
     const [backup] = listBackups(store);
@@ -277,7 +277,7 @@ describe("backup restore and import", () => {
   });
 
   it("accepts exported files and rejects junk", () => {
-    const exported = exportPortfolioJson({ holdings: [holding], events: [], snapshots: [] });
+    const exported = exportPortfolioJson({ holdings: [holding], events: [], snapshots: [], goal: null });
     const ok = parseImportedJson(exported);
     expect(ok.ok).toBe(true);
     expect(parseImportedJson("ikke json").ok).toBe(false);
@@ -306,7 +306,7 @@ describe("kvotesikker lagring", () => {
     };
     savePortfolio(
       store,
-      { holdings: [holding], events: [], snapshots: [] },
+      { holdings: [holding], events: [], snapshots: [], goal: null },
       { lastSeenSavedAt: null },
     );
     const result = loadPortfolio(store);
@@ -316,5 +316,25 @@ describe("kvotesikker lagring", () => {
       k.startsWith(STORAGE_KEYS.BACKUP_PREFIX),
     ).length;
     expect(backupCount).toBeLessThanOrEqual(4);
+  });
+});
+
+describe("sparemål", () => {
+  const goal = { amount: 3000000, label: "Frihet", setAt: "2026-08-05T10:00:00Z" };
+  it("round-tripper mål og verner mot skrivere uten goal-felt", () => {
+    const store = fakeStorage();
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal }, { lastSeenSavedAt: null });
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: null }, { lastSeenSavedAt: null });
+    const result = loadPortfolio(store);
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.data.goal?.amount).toBe(3000000);
+  });
+  it("gravstein (amount 0, nyere setAt) fjerner målet", () => {
+    const store = fakeStorage();
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal }, { lastSeenSavedAt: null });
+    savePortfolio(store, { holdings: [holding], events: [], snapshots: [], goal: { amount: 0, setAt: "2026-08-05T11:00:00Z" } }, { lastSeenSavedAt: null });
+    const result = loadPortfolio(store);
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.data.goal?.amount).toBe(0);
   });
 });

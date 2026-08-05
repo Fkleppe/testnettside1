@@ -61,6 +61,8 @@ import {
 } from "@/lib/reconstruct";
 import { periodPnl, type PnlPeriod } from "@/lib/pnl";
 import { drawPnlCard } from "@/lib/pnl-card";
+import { pickGoal } from "@/lib/storage";
+import { GoalCard } from "@/components/goal-card";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
 import {
@@ -102,6 +104,7 @@ import type {
   Holding,
   PortfolioEvent,
   PriceMode,
+  SavingsGoal,
 } from "@/lib/types";
 
 const money = new Intl.NumberFormat("nb-NO", {
@@ -166,6 +169,7 @@ export function Portfolio() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [events, setEvents] = useState<PortfolioEvent[]>([]);
   const [snapshots, setSnapshots] = useState<DailySnapshot[]>([]);
+  const [goal, setGoal] = useState<SavingsGoal | null>(null);
   const [dataState, setDataState] = useState<DataState>("loading");
   const [corruptKey, setCorruptKey] = useState<string | null>(null);
   const lastSeenSavedAt = useRef<string | null>(null);
@@ -184,6 +188,7 @@ export function Portfolio() {
         setHoldings(migrated);
         setEvents(result.data.events);
         setSnapshots(result.data.snapshots);
+        setGoal(result.data.goal);
         lastSeenSavedAt.current = result.savedAt;
         setDataState("user");
       } else if (result.status === "corrupt") {
@@ -199,10 +204,10 @@ export function Portfolio() {
     if (dataState !== "user") return;
     lastSeenSavedAt.current = savePortfolio(
       localStorage,
-      { holdings, events, snapshots },
+      { holdings, events, snapshots, goal },
       { lastSeenSavedAt: lastSeenSavedAt.current },
     );
-  }, [holdings, events, snapshots, dataState]);
+  }, [holdings, events, snapshots, goal, dataState]);
   /** Kursrefresh følger ENHVER beholdningsendring — også når synk ved
    *  innlogging erstatter beholdningene med skyens (potensielt stale) kopi.
    *  Signaturvakt + endringsdeteksjon hindrer løkker; flettes per id så
@@ -372,6 +377,7 @@ export function Portfolio() {
         JSON.stringify([mine.holdings, mine.events]) ===
         JSON.stringify([incoming, result.data.events]);
       setSnapshots((current) => mergeSnapshots(current, result.data.snapshots));
+      setGoal((current) => pickGoal(current, result.data.goal));
       if (sameContent) return;
       setHoldings(incoming);
       setEvents(result.data.events);
@@ -392,12 +398,14 @@ export function Portfolio() {
     // Historikk unionsflettes i stedet for å erstattes — dager samlet lokalt
     // skal overleve import/gjenoppretting.
     setSnapshots((current) => mergeSnapshots(current, data.snapshots));
+    setGoal((current) => pickGoal(current, data.goal));
   };
   const startFresh = () => {
     claimOwnership();
     setHoldings([]);
     setEvents([]);
     setSnapshots([]);
+    setGoal(null);
   };
 
   const { data: session, status: authStatus } = useSession();
@@ -462,8 +470,8 @@ export function Portfolio() {
     initialSyncDone.current = true;
     const localData: PortfolioData =
       dataState === "user"
-        ? { holdings, events, snapshots }
-        : { holdings: [], events: [], snapshots: [] };
+        ? { holdings, events, snapshots, goal }
+        : { holdings: [], events: [], snapshots: [], goal: null };
     void (async () => {
       setSyncState("checking");
       const remote = await fetchRemote();
@@ -482,17 +490,19 @@ export function Portfolio() {
         });
       } else {
         setSnapshots((current) => mergeSnapshots(current, decision.snapshots));
+        setGoal((current) => pickGoal(current, decision.goal));
         if (decision.pushLocal) {
           await pushRemote(lastSeenSavedAt.current ?? new Date().toISOString(), {
             ...localData,
             snapshots: decision.snapshots,
+            goal: decision.goal,
           });
         }
       }
       setSyncState("synced");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, dataState, holdings, events, snapshots, syncState]);
+  }, [authStatus, dataState, holdings, events, snapshots, goal, syncState]);
   useEffect(() => {
     if (
       authStatus !== "authenticated" ||
@@ -504,11 +514,11 @@ export function Portfolio() {
     const timer = setTimeout(() => {
       void pushRemote(
         lastSeenSavedAt.current ?? new Date().toISOString(),
-        { holdings, events, snapshots },
+        { holdings, events, snapshots, goal },
       ).then((ok) => setSyncState(ok ? "synced" : "error"));
     }, 2000);
     return () => clearTimeout(timer);
-  }, [holdings, events, snapshots, authStatus, dataState]);
+  }, [holdings, events, snapshots, goal, authStatus, dataState]);
   useEffect(() => {
     if (authStatus === "unauthenticated") {
       initialSyncDone.current = false;
@@ -522,11 +532,12 @@ export function Portfolio() {
     holdings: [],
     events: [],
     snapshots: [],
+    goal: null,
   });
   useEffect(() => {
     // eslint-disable-next-line react-hooks/immutability -- bevisst ref-speil av siste state for hendelseslyttere (storage/fokus/intervall)
-    liveSyncData.current = { holdings, events, snapshots };
-  }, [holdings, events, snapshots]);
+    liveSyncData.current = { holdings, events, snapshots, goal };
+  }, [holdings, events, snapshots, goal]);
   useEffect(() => {
     if (authStatus !== "authenticated" || dataState !== "user") return;
     let busy = false;
@@ -565,6 +576,7 @@ export function Portfolio() {
           setSnapshots((current) =>
             mergeSnapshots(current, decision.snapshots),
           );
+          setGoal((current) => pickGoal(current, decision.goal));
         }
       } finally {
         busy = false;
@@ -858,6 +870,15 @@ export function Portfolio() {
             />
           </div>
           <aside className="dash-side">
+            <GoalCard
+              goal={goal}
+              currentValue={allTotals.value}
+              editable={dataState === "user"}
+              onChange={(next) => {
+                claimOwnership();
+                setGoal(next);
+              }}
+            />
             <TodayPanel
               totals={totals}
               snapshots={dataState === "user" ? snapshots : []}
@@ -954,7 +975,7 @@ export function Portfolio() {
           </div>
           <aside className="dash-tail">
             <DataSafetyPanel
-              data={{ holdings, events, snapshots }}
+              data={{ holdings, events, snapshots, goal }}
               isDemo={dataState === "demo"}
               corruptKey={corruptKey}
               onReplace={replaceAll}

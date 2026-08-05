@@ -179,3 +179,14 @@ describe("snapshotPoints", () => {
     expect(points[0].value).toBe(700);
   });
 });
+
+describe("halvlastet-vakt", () => {
+  it("avviser samme-dags nedgradering der både verdi og kost kollapser", () => {
+    const good = upsertDailySnapshot([], [makeHolding(), makeHolding({ id: "h2", units: 100, cost: 9000, price: 100 })], new Date(2026, 7, 5, 9));
+    const partial = upsertDailySnapshot(good, [makeHolding()], new Date(2026, 7, 5, 12));
+    expect(partial).toBe(good);
+    // Markedskrasj (kost uendret) slipper gjennom
+    const crash = upsertDailySnapshot(good, [makeHolding({ price: 30 }), makeHolding({ id: "h2", units: 100, cost: 9000, price: 30 })], new Date(2026, 7, 5, 13));
+    expect(crash[crash.length - 1].value).toBeLessThan(good[good.length - 1].value * 0.5);
+  });
+});

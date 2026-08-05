@@ -14,6 +14,7 @@ const putSchema = z.object({
   holdings: z.array(z.unknown()),
   events: z.array(z.unknown()),
   snapshots: z.array(z.unknown()).optional(),
+  goal: z.unknown().optional(),
 });
 
 function userPrefix(userId: string) {
@@ -55,6 +56,7 @@ export async function GET() {
       holdings: validated.data.holdings,
       events: validated.data.events,
       snapshots: validated.data.snapshots,
+      goal: validated.data.goal,
     });
   } catch (error) {
     console.error("Portfolio GET failed:", error);
@@ -87,18 +89,25 @@ export async function PUT(request: Request) {
   try {
     const existing = await latestBlob(session.userId);
     let data = validated.data;
-    // Historikk-vern: en klient uten snapshots (eldre bundle) skal ikke
-    // kunne slette skyens historikk-dager. Ved tom innsending arves
-    // eksisterende snapshots videre.
-    if (data.snapshots.length === 0 && data.holdings.length > 0 && existing[0]) {
+    // Arve-vern: klienter uten felt (eldre bundle) skal ikke kunne slette
+    // skyens historikk eller sparemål ved å sende konvolutt uten dem.
+    const needsSnapshots =
+      data.snapshots.length === 0 && data.holdings.length > 0;
+    const needsGoal = data.goal === null;
+    if ((needsSnapshots || needsGoal) && existing[0]) {
       try {
         const response = await fetch(existing[0].url, { cache: "no-store" });
         if (response.ok) {
           const previous = validatePortfolioData(
             JSON.parse(decryptJson(await response.text())),
           );
-          if (previous.ok && previous.data.snapshots.length > 0) {
-            data = { ...data, snapshots: previous.data.snapshots };
+          if (previous.ok) {
+            if (needsSnapshots && previous.data.snapshots.length > 0) {
+              data = { ...data, snapshots: previous.data.snapshots };
+            }
+            if (needsGoal && previous.data.goal) {
+              data = { ...data, goal: previous.data.goal };
+            }
           }
         }
       } catch {

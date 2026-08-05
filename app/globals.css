@@ -5004,3 +5004,106 @@ footer small {
   color: var(--muted);
   font-size: 0.6875rem;
 }
+
+/* Sparemål */
+.goal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  padding: 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.goal-empty:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.goal-card .goal-progress {
+  padding: 2px 20px 16px;
+}
+.goal-progress strong {
+  font-size: 1.5rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+.goal-meter {
+  display: block;
+  height: 7px;
+  margin: 10px 0 8px;
+  border-radius: 5px;
+  background: var(--surface-active);
+  overflow: hidden;
+}
+.goal-meter i {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--positive) 70%, var(--surface)),
+    var(--positive)
+  );
+  box-shadow: 0 0 10px color-mix(in oklab, var(--positive) 50%, transparent);
+}
+.goal-progress small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.goal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 20px 16px;
+}
+.goal-form input {
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  padding: 8px 11px;
+  font-size: 0.8125rem;
+}
+.goal-form > div {
+  display: flex;
+  gap: 8px;
+}
+.goal-save {
+  border: 1px solid transparent;
+  border-top: 2px solid oklch(100% 0 0 / 0.5);
+  border-radius: 11px;
+  background: oklch(93% 0.004 150);
+  color: oklch(16% 0.01 150);
+  padding: 7px 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.goal-cancel,
+.goal-remove {
+  border: 1px solid var(--line-soft);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.goal-remove {
+  margin-left: auto;
+  color: var(--negative);
+  border-color: color-mix(in oklab, var(--negative) 35%, var(--line));
+}
+.goal-edit {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+}

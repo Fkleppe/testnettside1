@@ -48,3 +48,11 @@ export type PortfolioEvent = {
   amount: number;
   note?: string;
 };
+
+/** Sparemål. amount 0 = mål fjernet (gravstein — hindrer at eldre klienter
+ *  gjenoppliver et slettet mål); nyeste setAt vinner all fletting. */
+export type SavingsGoal = {
+  amount: number;
+  label?: string;
+  setAt: string;
+};

@@ -1,6 +1,7 @@
 import { mergeSnapshots, type DailySnapshot } from "./history";
+import { pickGoal } from "./storage";
 import type { PortfolioData } from "./storage";
-import type { Holding } from "./types";
+import type { Holding, SavingsGoal } from "./types";
 
 /**
  * Kursferskhet er MONOTON: når fjernkopien vinner flettingen, beholdes
@@ -41,10 +42,16 @@ export type RemoteSnapshot = {
   holdings: PortfolioData["holdings"];
   events: PortfolioData["events"];
   snapshots: DailySnapshot[];
+  goal: SavingsGoal | null;
 };
 
 export type MergeDecision =
-  | { action: "keep-local"; pushLocal: boolean; snapshots: DailySnapshot[] }
+  | {
+      action: "keep-local";
+      pushLocal: boolean;
+      snapshots: DailySnapshot[];
+      goal: SavingsGoal | null;
+    }
   | { action: "take-remote"; data: PortfolioData; backupLocal: boolean };
 
 /**
@@ -64,14 +71,16 @@ export function decideMerge(
     local.data.snapshots,
     remote?.exists ? remote.snapshots : [],
   );
+  const goal = pickGoal(local.data.goal, remote?.exists ? remote.goal : null);
 
   if (remoteEmpty) {
-    return { action: "keep-local", pushLocal: !localEmpty, snapshots };
+    return { action: "keep-local", pushLocal: !localEmpty, snapshots, goal };
   }
   const remoteData: PortfolioData = {
     holdings: remote!.holdings,
     events: remote!.events,
     snapshots,
+    goal,
   };
   if (localEmpty) {
     return { action: "take-remote", data: remoteData, backupLocal: false };
@@ -82,7 +91,7 @@ export function decideMerge(
   if (remoteNewer) {
     return { action: "take-remote", data: remoteData, backupLocal: true };
   }
-  return { action: "keep-local", pushLocal: true, snapshots };
+  return { action: "keep-local", pushLocal: true, snapshots, goal };
 }
 
 export async function fetchRemote(): Promise<RemoteSnapshot | null> {
@@ -97,6 +106,7 @@ export async function fetchRemote(): Promise<RemoteSnapshot | null> {
         holdings: [],
         events: [],
         snapshots: [],
+        goal: null,
       };
     }
     return {
@@ -105,6 +115,7 @@ export async function fetchRemote(): Promise<RemoteSnapshot | null> {
       holdings: Array.isArray(json.holdings) ? json.holdings : [],
       events: Array.isArray(json.events) ? json.events : [],
       snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
+      goal: json.goal ?? null,
     };
   } catch {
     return null;
