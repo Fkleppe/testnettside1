@@ -57,6 +57,7 @@ import {
   reconstructSnapshots,
   type PriceSeries,
 } from "@/lib/reconstruct";
+import { periodPnl, type PnlPeriod } from "@/lib/pnl";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
 import {
@@ -793,7 +794,11 @@ export function Portfolio() {
             />
           </div>
           <aside className="dash-side">
-            <TodayPanel totals={totals} />
+            <TodayPanel
+              totals={totals}
+              snapshots={dataState === "user" ? snapshots : []}
+              events={events}
+            />
             <MoversCard holdings={visibleHoldings} />
             <DataPanel holdings={visibleHoldings} />
           </aside>
@@ -1158,50 +1163,99 @@ function EquityPanel({
 
 function TodayPanel({
   totals,
+  snapshots,
+  events,
 }: {
   totals: ReturnType<typeof calculateTotals>;
+  snapshots: DailySnapshot[];
+  events: PortfolioEvent[];
 }) {
+  const [period, setPeriod] = useState<"latest" | PnlPeriod>("latest");
+  const now = new Date();
+  const result =
+    period === "latest" || period === "total"
+      ? null
+      : periodPnl(snapshots, events, totals.value, period, now);
+  const isLatest = period === "latest";
+  const isTotal = period === "total";
+  const pnl = isLatest
+    ? totals.updated
+      ? totals.today
+      : null
+    : isTotal
+      ? totals.total
+      : (result?.pnl ?? null);
+  const percent = isLatest
+    ? totals.updated
+      ? totals.todayPercent
+      : null
+    : isTotal
+      ? totals.totalPercent
+      : (result?.percent ?? null);
+  const tone =
+    pnl === null ? "neutral" : pnl >= 0 ? "positive" : "negative";
+  const periods: { key: "latest" | PnlPeriod; label: string }[] = [
+    { key: "latest", label: "Siste" },
+    { key: "7d", label: "7D" },
+    { key: "30d", label: "30D" },
+    { key: "1y", label: "1Å" },
+    { key: "total", label: "Alt" },
+  ];
   return (
     <section className="today-card">
       <div className="card-title-row">
-        <h2>{changeLabel(totals)}</h2>
-        <Clock3 size={16} />
+        <h2>PnL</h2>
+        <div className="pnl-tabs" role="tablist" aria-label="PnL-periode">
+          {periods.map((item) => (
+            <button
+              key={item.key}
+              role="tab"
+              aria-selected={period === item.key}
+              className={period === item.key ? "on" : ""}
+              onClick={() => setPeriod(item.key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="today-value">
-        <strong
-          className={
-            !totals.updated
-              ? "neutral"
-              : totals.today >= 0
-                ? "positive"
-                : "negative"
-          }
-        >
-          {totals.updated ? signedMoney(totals.today) : "—"}
+        <strong className={tone}>
+          {pnl === null ? "—" : signedMoney(pnl)}
         </strong>
-        <b
-          className={
-            !totals.updated
-              ? "neutral"
-              : totals.today >= 0
-                ? "positive"
-                : "negative"
-          }
-        >
-          {totals.updated
-            ? signedPercent(totals.todayPercent)
-            : "Ikke beregnet"}
+        <b className={tone}>
+          {percent === null ? "—" : signedPercent(percent)}
         </b>
       </div>
-      <div className="coverage">
-        <span>
-          <i style={{ width: `${totals.coveragePercent}%` }} />
-        </span>
-        <small>
-          {totals.updated} av {totals.positions} investeringer ·{" "}
-          {Math.round(totals.coveragePercent)} % av verdien
-        </small>
-      </div>
+      {isLatest ? (
+        <div className="coverage">
+          <span>
+            <i style={{ width: `${totals.coveragePercent}%` }} />
+          </span>
+          <small>
+            {totals.updated
+              ? `${changeLabel(totals)} · ${totals.updated} av ${totals.positions} investeringer`
+              : "Venter på kursoppdatering"}
+          </small>
+        </div>
+      ) : (
+        <div className="coverage">
+          <span>
+            <i style={{ width: pnl === null ? "0%" : "100%" }} />
+          </span>
+          <small>
+            {isTotal
+              ? `Mot investert ${money.format(totals.cost)}`
+              : result
+                ? `Fra ${formatDateKey(result.fromDate)}${
+                    result.deposits > 0
+                      ? ` · justert for ${money.format(result.deposits)} innskudd`
+                      : ""
+                  }${result.reconstructed ? " · rekonstruert" : ""}`
+                : "Trenger mer historikk for denne perioden"}
+          </small>
+        </div>
+      )}
     </section>
   );
 }
