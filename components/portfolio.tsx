@@ -254,7 +254,27 @@ export function Portfolio() {
     setSnapshots([]);
   };
 
-  const { status: authStatus } = useSession();
+  const { data: session, status: authStatus } = useSession();
+  /** Fey-hilsen for innloggede. Settes etter hydrering — SSR og første
+   *  klient-render må være identiske («Porteføljen min»). */
+  const [heading, setHeading] = useState("Porteføljen min");
+  useEffect(() => {
+    const name = session?.user?.name?.split(" ")[0];
+    queueMicrotask(() => {
+      if (authStatus !== "authenticated" || !name) {
+        setHeading("Porteføljen min");
+        return;
+      }
+      const hour = new Date().getHours();
+      const time =
+        hour >= 5 && hour < 12
+          ? "morgen"
+          : hour >= 12 && hour < 17
+            ? "ettermiddag"
+            : "kveld";
+      setHeading(`God ${time}, ${name}`);
+    });
+  }, [authStatus, session]);
   const [syncState, setSyncState] = useState<SyncState>("off");
   const initialSyncDone = useRef(false);
   useEffect(() => {
@@ -481,7 +501,7 @@ export function Portfolio() {
       </header>
 
       <div className="nordnet-shell" id="top">
-        <h1>Porteføljen min</h1>
+        <h1>{heading}</h1>
         <nav className="economy-tabs">
           <button className="active">Oversikt</button>
           <a href="#beholdning">Beholdning</a>

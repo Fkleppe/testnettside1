@@ -865,7 +865,7 @@ h3 {
 }
 .history-chart {
   position: relative;
-  height: 188px;
+  height: 236px;
   margin: 2px 0 8px;
   overflow: hidden;
   touch-action: pan-y;
@@ -2079,6 +2079,17 @@ h3 {
   gap: 4px;
   text-align: right;
 }
+.asset-change.positive,
+.asset-change.negative {
+  border-radius: 7px;
+  padding: 3px 8px;
+}
+.asset-change.positive {
+  background: color-mix(in oklab, var(--positive) 12%, transparent);
+}
+.asset-change.negative {
+  background: color-mix(in oklab, var(--negative) 12%, transparent);
+}
 .asset-change > svg {
   flex: 0 0 auto;
 }
@@ -2864,7 +2875,7 @@ footer small {
     margin-left: 2px;
   }
   .history-chart {
-    height: 160px;
+    height: 180px;
   }
   .range-row {
     grid-template-columns: 1fr 1fr;

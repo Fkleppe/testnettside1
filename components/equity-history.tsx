@@ -206,7 +206,8 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
             >
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+                  <stop offset="0%" stopColor={color} stopOpacity="0.38" />
+                  <stop offset="55%" stopColor={color} stopOpacity="0.12" />
                   <stop offset="100%" stopColor={color} stopOpacity="0" />
                 </linearGradient>
               </defs>
