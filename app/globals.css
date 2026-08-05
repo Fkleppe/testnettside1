@@ -1209,7 +1209,6 @@ h3 {
 }
 
 .data-card {
-  min-height: 405px;
   padding-bottom: 18px;
 }
 .data-card .card-title-row button {
@@ -1322,7 +1321,6 @@ h3 {
 }
 
 .activity-card {
-  min-height: 220px;
   padding-bottom: 8px;
 }
 .activity-card .card-title-row > svg {
@@ -1401,7 +1399,6 @@ h3 {
 }
 
 .forecast-card {
-  min-height: 650px;
   padding-bottom: 18px;
   scroll-margin-top: 86px;
 }
@@ -1859,7 +1856,6 @@ h3 {
 }
 
 .holdings-card {
-  min-height: 430px;
   scroll-margin-top: 86px;
 }
 .holdings-card .card-title-row {
@@ -4204,6 +4200,7 @@ footer small {
 .dash-hero .history-chart {
   flex: 1;
   min-height: 300px;
+  max-height: 520px;
 }
 .dash-side {
   grid-column: span 4;
@@ -4214,14 +4211,9 @@ footer small {
 .dash-tri {
   grid-column: span 12;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   align-items: stretch;
-}
-@media (max-width: 1500px) {
-  .dash-tri {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 .dash-grid > .holdings-card {
   grid-column: span 12;

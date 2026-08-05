@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/138.0 Safari/537.36",
           "Accept-Language": "nb-NO,nb;q=0.9,en;q=0.7",
         },
-        next: { revalidate: 3600 },
+        next: { revalidate: 300 },
       });
       const html = await response.text();
       const navMatch = html.match(

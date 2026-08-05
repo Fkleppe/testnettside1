@@ -204,7 +204,7 @@ export function Portfolio() {
         );
         if (changed) setHoldings(next);
       });
-    }, 15 * 60 * 1000);
+    }, 5 * 60 * 1000);
     return () => window.clearInterval(timer);
   }, [holdings, dataState]);
   /** Rekonstruert historikk: dagens beholdning × ekte kurshistorikk gir en
@@ -684,6 +684,7 @@ export function Portfolio() {
           <aside className="dash-side">
             <TodayPanel totals={totals} />
             <MoversCard holdings={visibleHoldings} />
+            <DataPanel holdings={visibleHoldings} />
           </aside>
           <div className="dash-tri">
             <BreakdownPanel
@@ -693,7 +694,6 @@ export function Portfolio() {
               active={activeAccount}
               onChange={setActiveAccount}
             />
-            <DataPanel holdings={visibleHoldings} />
             <TaxPanel holdings={visibleHoldings} />
             <ActivityPanel events={events} activeAccount={activeAccount} />
           </div>
