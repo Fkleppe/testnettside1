@@ -4874,3 +4874,60 @@ footer small {
   font-size: 0.75rem;
   text-align: right;
 }
+
+/* Mobil-header: la raden brytes med solid bakgrunn i stedet for å renne
+   utover innholdet */
+@media (max-width: 700px) {
+  .main-header {
+    height: auto;
+    background: var(--page);
+  }
+  .header-inner {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding: 8px 0;
+  }
+  .header-actions {
+    margin-left: auto;
+    gap: 6px;
+  }
+  .mode-toggle,
+  .account-button,
+  .transfer,
+  .search-button {
+    padding: 6px 10px;
+    font-size: 0.6875rem;
+  }
+}
+/* Synk-splash: aldri vis demo-tall til en innlogget bruker som venter på
+   skykopien sin */
+.sync-splash {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0 24px;
+}
+.sync-splash .spin {
+  margin: 0 auto 14px;
+  color: var(--positive);
+}
+.sync-splash b {
+  display: block;
+  font-size: 1.0625rem;
+}
+.sync-splash small {
+  color: var(--muted);
+}
+.sync-splash button {
+  margin-top: 18px;
+  border: 1px solid transparent;
+  border-top: 2px solid oklch(100% 0 0 / 0.5);
+  border-radius: 13px;
+  background: oklch(93% 0.004 150);
+  color: oklch(16% 0.01 150);
+  padding: 9px 20px;
+  font-weight: 700;
+}

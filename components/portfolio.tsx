@@ -477,7 +477,7 @@ export function Portfolio() {
       setSyncState("synced");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, dataState, holdings, events, snapshots]);
+  }, [authStatus, dataState, holdings, events, snapshots, syncState]);
   useEffect(() => {
     if (
       authStatus !== "authenticated" ||
@@ -647,6 +647,42 @@ export function Portfolio() {
     ]);
   };
 
+  const waitingForCloud =
+    authStatus === "authenticated" &&
+    dataState === "demo" &&
+    (syncState === "checking" || syncState === "off");
+  if (waitingForCloud || (dataState === "demo" && syncState === "error")) {
+    return (
+      <main className="app-shell" data-theme={theme}>
+        <div className="sync-splash">
+          <div>
+            {syncState === "error" ? (
+              <>
+                <b>Fikk ikke hentet skykopien din</b>
+                <small>Sjekk nettet og prøv igjen.</small>
+                <div>
+                  <button
+                    onClick={() => {
+                      initialSyncDone.current = false;
+                      setSyncState("off");
+                    }}
+                  >
+                    Prøv igjen
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="spin" size={22} />
+                <b>Henter porteføljen din …</b>
+                <small>Skykopien lastes og dekrypteres.</small>
+              </>
+            )}
+          </div>
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="app-shell" data-theme={theme}>
       <header className="main-header">
