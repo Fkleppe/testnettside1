@@ -4249,3 +4249,85 @@ footer small {
     min-height: 220px;
   }
 }
+
+/* ===== Lyst, redaksjonelt app-tema — egen identitet, ikke Nordnet-mørkt ===== */
+.app-shell {
+  --font-display: "Fraunces Variable", Georgia, serif;
+  --page: oklch(96.8% 0.009 85);
+  --header: oklch(96.8% 0.009 85);
+  --surface: oklch(99.3% 0.004 90);
+  --surface-hover: oklch(95.8% 0.009 87);
+  --surface-active: oklch(92.5% 0.014 85);
+  --line: oklch(86.5% 0.014 85);
+  --line-soft: oklch(90.5% 0.011 85);
+  --text: oklch(23% 0.02 60);
+  --muted: oklch(47% 0.021 70);
+  --quiet: oklch(60% 0.018 75);
+  --positive: oklch(51% 0.13 155);
+  --negative: oklch(50% 0.18 27);
+  --warning: oklch(56% 0.12 75);
+  --blue: oklch(48% 0.16 255);
+  --account-private: oklch(52% 0.11 181);
+  --account-business: oklch(50% 0.14 264);
+  --account-family: oklch(57% 0.12 82);
+  --account-pension: oklch(50% 0.13 328);
+  min-height: 100dvh;
+  background:
+    radial-gradient(
+      1100px 420px at 50% -160px,
+      oklch(90% 0.05 85 / 0.55),
+      transparent 70%
+    ),
+    var(--page);
+  color: var(--text);
+}
+.app-shell h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.app-shell .card-title-row h2,
+.app-shell .movers-card h2,
+.app-shell .breakdown-card h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.app-shell .accounts-card,
+.app-shell .equity-card,
+.app-shell .today-card,
+.app-shell .data-card,
+.app-shell .breakdown-card,
+.app-shell .holdings-card,
+.app-shell .forecast-card,
+.app-shell .activity-card,
+.app-shell .movers-card,
+.app-shell .acct-chip {
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px oklch(30% 0.03 60 / 0.05),
+    0 10px 30px oklch(30% 0.03 60 / 0.06);
+}
+.app-shell .acct-chip:hover,
+.app-shell .acct-chip.on {
+  background: var(--surface);
+  border-color: color-mix(in oklab, var(--positive) 45%, var(--line));
+}
+.app-shell .acct-chip.on {
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--positive) 14%, transparent),
+    0 10px 30px oklch(30% 0.03 60 / 0.06);
+}
+.app-shell .history-value-line {
+  filter: none;
+}
+.app-shell .history-tooltip {
+  background: var(--surface);
+  box-shadow: 0 10px 30px oklch(30% 0.03 60 / 0.16);
+}
+.app-shell .history-live-dot {
+  border: 2px solid var(--surface);
+}
+.app-shell footer {
+  background: transparent;
+}

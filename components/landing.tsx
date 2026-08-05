@@ -201,7 +201,7 @@ export function Landing() {
             <div className="ld-laptop">
               <div className="ld-laptop-screen">
                 <Image
-                  src="/marketing/dashboard-6.png"
+                  src="/marketing/dashboard-7.png"
                   width={1560}
                   height={975}
                   priority
