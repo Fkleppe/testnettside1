@@ -223,7 +223,11 @@ export function Portfolio() {
         lastSeenSavedAt.current = result.savedAt;
         setHoldings(result.data.holdings.map(migrateHolding));
         setEvents(result.data.events);
-        setSnapshots(result.data.snapshots);
+        // Fletting, ikke erstatning: en annen fane med eldre klient skal
+        // aldri kunne nulle historikken i denne fanen.
+        setSnapshots((current) =>
+          mergeSnapshots(current, result.data.snapshots),
+        );
         setDataState("user");
       }
     };

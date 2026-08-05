@@ -85,10 +85,29 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
   try {
-    const payload = encryptJson(
-      JSON.stringify({ savedAt: parsed.data.savedAt, ...validated.data }),
-    );
     const existing = await latestBlob(session.userId);
+    let data = validated.data;
+    // Historikk-vern: en klient uten snapshots (eldre bundle) skal ikke
+    // kunne slette skyens historikk-dager. Ved tom innsending arves
+    // eksisterende snapshots videre.
+    if (data.snapshots.length === 0 && data.holdings.length > 0 && existing[0]) {
+      try {
+        const response = await fetch(existing[0].url, { cache: "no-store" });
+        if (response.ok) {
+          const previous = validatePortfolioData(
+            JSON.parse(decryptJson(await response.text())),
+          );
+          if (previous.ok && previous.data.snapshots.length > 0) {
+            data = { ...data, snapshots: previous.data.snapshots };
+          }
+        }
+      } catch {
+        // Klarer vi ikke lese forrige versjon, lagrer vi som innsendt.
+      }
+    }
+    const payload = encryptJson(
+      JSON.stringify({ savedAt: parsed.data.savedAt, ...data }),
+    );
     await put(
       `${userPrefix(session.userId)}${Date.now()}.enc`,
       payload,

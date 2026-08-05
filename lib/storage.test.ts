@@ -76,6 +76,91 @@ describe("loadPortfolio", () => {
     expect(result.data.snapshots[0].groups).toEqual({});
   });
 
+  it("skrivetidsvern: en skriver uten snapshots kan ikke slette disk-historikk", () => {
+    const store = fakeStorage();
+    const snapshot = {
+      date: "2026-08-05",
+      capturedAt: "2026-08-05T08:00:00.000Z",
+      value: 2305911,
+      cost: 1957904,
+      groups: {},
+    };
+    savePortfolio(
+      store,
+      { holdings: [holding], events: [], snapshots: [snapshot as never] },
+      { lastSeenSavedAt: null },
+    );
+    // Simulerer gammel klient: skriver samme portefølje UTEN snapshots.
+    savePortfolio(
+      store,
+      { holdings: [holding], events: [], snapshots: [] },
+      { lastSeenSavedAt: null },
+    );
+    const result = loadPortfolio(store);
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.data.snapshots).toHaveLength(1);
+    expect(result.data.snapshots[0].value).toBe(2305911);
+  });
+
+  it("bevisst nullstilling fjerner historikken", () => {
+    const store = fakeStorage();
+    const snapshot = {
+      date: "2026-08-05",
+      capturedAt: "2026-08-05T08:00:00.000Z",
+      value: 100,
+      cost: 90,
+      groups: {},
+    };
+    savePortfolio(
+      store,
+      { holdings: [holding], events: [], snapshots: [snapshot as never] },
+      { lastSeenSavedAt: null },
+    );
+    savePortfolio(
+      store,
+      { holdings: [], events: [], snapshots: [] },
+      { lastSeenSavedAt: null },
+    );
+    const result = loadPortfolio(store);
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.data.snapshots).toHaveLength(0);
+  });
+
+  it("gjenoppretter historikk fra sikkerhetskopi når konvolutten mangler den", () => {
+    const store = fakeStorage();
+    const snapshot = {
+      date: "2026-08-04",
+      capturedAt: "2026-08-04T18:00:00.000Z",
+      value: 500,
+      cost: 400,
+      groups: {},
+    };
+    store.setItem(
+      `${STORAGE_KEYS.BACKUP_PREFIX}2026-08-04T18:00:00.000Z`,
+      JSON.stringify({
+        v: 2,
+        savedAt: "2026-08-04T18:00:00.000Z",
+        holdings: [holding],
+        events: [],
+        snapshots: [snapshot],
+      }),
+    );
+    // Hovedkonvolutt skrevet av gammel klient — uten snapshots-felt.
+    store.setItem(
+      STORAGE_KEYS.DATA_KEY,
+      JSON.stringify({
+        v: 2,
+        savedAt: "2026-08-05T09:00:00.000Z",
+        holdings: [holding],
+        events: [],
+      }),
+    );
+    const result = loadPortfolio(store);
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.data.snapshots).toHaveLength(1);
+    expect(result.data.snapshots[0].date).toBe("2026-08-04");
+  });
+
   it("dropper ugyldige snapshots uten å gate beholdningene", () => {
     const store = fakeStorage();
     store.setItem(

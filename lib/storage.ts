@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DailySnapshot } from "./history";
+import { mergeSnapshots, type DailySnapshot } from "./history";
 import type { Holding, PortfolioEvent } from "./types";
 
 const DATA_KEY = "min-sparing-data-v2";
@@ -141,6 +141,27 @@ function salvageSnapshots(rawItems: unknown[] | undefined): DailySnapshot[] {
   return valid;
 }
 
+/** Unionsfletter historikk fra alle lesbare sikkerhetskopier — brukes når
+ *  hovedkonvolutten mangler snapshots (typisk skrevet av en eldre klient). */
+function recoverSnapshotsFromBackups(store: StorageLike): DailySnapshot[] {
+  let recovered: DailySnapshot[] = [];
+  for (const key of storageKeys(store)) {
+    if (!key.startsWith(BACKUP_PREFIX)) continue;
+    const raw = store.getItem(key);
+    if (!raw) continue;
+    try {
+      const envelope = envelopeSchema.parse(JSON.parse(raw));
+      recovered = mergeSnapshots(
+        recovered,
+        salvageSnapshots(envelope.snapshots),
+      );
+    } catch {
+      // Uleselige sikkerhetskopier hoppes over her; de listes fortsatt.
+    }
+  }
+  return recovered;
+}
+
 function preserveCorrupt(store: StorageLike, raw: string, now: Date) {
   const corruptKey = `${CORRUPT_PREFIX}${now.toISOString()}`;
   try {
@@ -171,12 +192,19 @@ export function loadPortfolio(
       if (holdings.dropped > 0 || events.dropped > 0) {
         preserveCorrupt(store, rawV2, now);
       }
+      let snapshots = salvageSnapshots(envelope.snapshots);
+      if (snapshots.length === 0 && holdings.valid.length > 0) {
+        // Konvolutten mangler historikk (skrevet av gammel klient?) —
+        // gjenopprett fra rullerende sikkerhetskopier i stedet for å miste
+        // dagene stille.
+        snapshots = recoverSnapshotsFromBackups(store);
+      }
       return {
         status: "ok",
         data: {
           holdings: holdings.valid,
           events: events.valid,
-          snapshots: salvageSnapshots(envelope.snapshots),
+          snapshots,
         },
         savedAt: envelope.savedAt,
         droppedItems: holdings.dropped + events.dropped,
@@ -238,6 +266,7 @@ export function savePortfolio(
   options: { lastSeenSavedAt: string | null; now?: Date },
 ): string {
   const now = options.now ?? new Date();
+  let snapshots = data.snapshots;
   const existingRaw = store.getItem(DATA_KEY);
   if (existingRaw) {
     try {
@@ -248,10 +277,22 @@ export function savePortfolio(
       if (isForeignWrite) {
         store.setItem(`${BACKUP_PREFIX}conflict-${existing.savedAt}`, existingRaw);
       }
+      // Skrivetidsvern: historikk-dager som allerede står på disk skal aldri
+      // kunne slettes av en skriver med færre dager (gammel fane/klient).
+      // Unntak: bevisst nullstilling (tom portefølje OG tom historikk).
+      const intentionalReset =
+        data.holdings.length === 0 && data.snapshots.length === 0;
+      if (!intentionalReset) {
+        snapshots = mergeSnapshots(
+          snapshots,
+          salvageSnapshots(existing.snapshots),
+        );
+      }
     } catch {
       preserveCorrupt(store, existingRaw, now);
     }
   }
+  data = { ...data, snapshots };
   const savedAt = now.toISOString();
   const envelope = { v: 2 as const, savedAt, ...data };
   store.setItem(DATA_KEY, JSON.stringify(envelope));
