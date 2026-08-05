@@ -504,39 +504,6 @@ export function Portfolio() {
 
   return (
     <main className="app-shell">
-      <div className="market-strip">
-        <div className="market-strip-inner">
-          <span>
-            <i /> MIN SPARING
-          </span>
-          <span>
-            I dag{" "}
-            <b
-              className={
-                !allTotals.updated
-                  ? "neutral"
-                  : allTotals.today >= 0
-                    ? "positive"
-                    : "negative"
-              }
-            >
-              {allTotals.updated
-                ? signedPercent(allTotals.todayPercent)
-                : "Ikke beregnet"}
-            </b>
-          </span>
-          <span>
-            Total verdi <b>{money.format(allTotals.value)}</b>
-          </span>
-          <span>
-            Dagens data{" "}
-            <b>
-              {allTotals.updated}/{allTotals.positions}
-            </b>
-          </span>
-          <small>Alle beløp i NOK</small>
-        </div>
-      </div>
       <header className="main-header">
         <div className="header-inner">
           <a className="brand" href="#top" aria-label="Min Sparing – oversikt">
@@ -639,16 +606,25 @@ export function Portfolio() {
           </div>
         ) : null}
 
-        <section className="portfolio-grid">
-          <div className="left-column">
-            <AccountRail
-              active={activeAccount}
-              onChange={setActiveAccount}
-              allTotals={allTotals}
-              totals={accountTotals}
-              advanced={advanced}
-              onAdd={() => setAdding(true)}
+        <AccountRail
+          active={activeAccount}
+          onChange={setActiveAccount}
+          allTotals={allTotals}
+          totals={accountTotals}
+        />
+        <section className="dash-grid">
+          <div className="dash-hero">
+            <EquityPanel
+              totals={totals}
+              activeAccount={activeAccount}
+              snapshots={dataState === "user" ? snapshots : []}
             />
+          </div>
+          <aside className="dash-side">
+            <TodayPanel totals={totals} />
+            <MoversCard holdings={visibleHoldings} />
+          </aside>
+          <div className="dash-tri">
             <BreakdownPanel
               holdings={holdings}
               totals={accountTotals}
@@ -656,13 +632,10 @@ export function Portfolio() {
               active={activeAccount}
               onChange={setActiveAccount}
             />
+            <DataPanel holdings={visibleHoldings} />
+            <TaxPanel holdings={visibleHoldings} />
+            <ActivityPanel events={events} activeAccount={activeAccount} />
           </div>
-          <div className="center-column">
-            <EquityPanel
-              totals={totals}
-              activeAccount={activeAccount}
-              snapshots={dataState === "user" ? snapshots : []}
-            />
             <section className="holdings-card" id="beholdning">
               <div className="card-title-row">
                 <div>
@@ -734,14 +707,10 @@ export function Portfolio() {
                 ) : null}
               </div>
             </section>
+          <div className="dash-forecast">
             <ForecastPanel holdings={visibleHoldings} />
           </div>
-          <aside className="right-stack">
-            <TodayPanel totals={totals} />
-            <MoversCard holdings={visibleHoldings} />
-            <DataPanel holdings={visibleHoldings} />
-            <TaxPanel holdings={visibleHoldings} />
-            <ActivityPanel events={events} activeAccount={activeAccount} />
+          <aside className="dash-tail">
             <DataSafetyPanel
               data={{ holdings, events, snapshots }}
               isDemo={dataState === "demo"}
@@ -823,91 +792,64 @@ function AccountRail({
   onChange,
   allTotals,
   totals,
-  advanced,
-  onAdd,
 }: {
   active: AccountFilter;
   onChange: (value: AccountFilter) => void;
   allTotals: ReturnType<typeof calculateTotals>;
   totals: Record<AccountGroup, ReturnType<typeof calculateTotals>>;
-  advanced: boolean;
-  onAdd: () => void;
 }) {
+  const chips: {
+    key: AccountFilter;
+    label: string;
+    short: string;
+    color?: string;
+    values: ReturnType<typeof calculateTotals>;
+  }[] = [
+    { key: "all", label: "Alle kontoer", short: "MS", values: allTotals },
+    ...accountOrder.map((group) => ({
+      key: group as AccountFilter,
+      label: accountConfig[group].label,
+      short: accountConfig[group].short,
+      color: accountConfig[group].color,
+      values: totals[group],
+    })),
+  ];
   return (
-    <aside className="accounts-card">
-      <div className="card-title-row">
-        <h2>Kontoer</h2>
-        <span className="card-context">Sortert etter eier</span>
-      </div>
-      <button
-        className={`account-row all ${active === "all" ? "selected" : ""}`}
-        onClick={() => onChange("all")}
-      >
-        <span className="account-avatar">MS</span>
-        <span>
-          <b>Alle kontoer</b>
-          <small>{allTotals.positions} investeringer</small>
-        </span>
-        <em>
-          <b>{money.format(allTotals.value)}</b>
-          <small
+    <div className="account-chips" role="tablist" aria-label="Kontofilter">
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          role="tab"
+          aria-selected={active === chip.key}
+          className={`acct-chip ${active === chip.key ? "on" : ""}`}
+          style={
+            chip.color
+              ? ({ "--account-color": chip.color } as CSSProperties)
+              : undefined
+          }
+          onClick={() => onChange(chip.key)}
+        >
+          <i>{chip.short}</i>
+          <span>
+            <b>{chip.label}</b>
+            <small>{money.format(chip.values.value)}</small>
+          </span>
+          <em
             className={
-              !allTotals.updated
+              !chip.values.updated
                 ? "neutral"
-                : allTotals.today >= 0
+                : chip.values.today >= 0
                   ? "positive"
                   : "negative"
             }
           >
-            {allTotals.updated
-              ? signedPercent(allTotals.todayPercent)
-              : "Ikke beregnet"}
-          </small>
-        </em>
-      </button>
-      {accountOrder.map((group) => {
-        const config = accountConfig[group];
-        const values = totals[group];
-        return (
-          <button
-            key={group}
-            className={`account-row ${active === group ? "selected" : ""}`}
-            style={{ "--account-color": config.color } as CSSProperties}
-            onClick={() => onChange(group)}
-          >
-            <span className="account-avatar">{config.short}</span>
-            <span>
-              <b>{config.label}</b>
-              <small>{values.positions} investeringer</small>
-            </span>
-            <em>
-              <small
-                className={
-                  !values.updated
-                    ? "neutral"
-                    : values.today >= 0
-                      ? "positive"
-                      : "negative"
-                }
-              >
-                {values.updated ? signedPercent(values.todayPercent) : "—"}
-              </small>
-              <b>{money.format(values.value)}</b>
-            </em>
-          </button>
-        );
-      })}
-      {advanced ? (
-        <div className="account-actions">
-          <button onClick={onAdd}>Ny investering</button>
-          <button onClick={onAdd}>Legg til</button>
-        </div>
-      ) : (
-        <div className="account-lock">
-          <LockKeyhole size={13} /> Endringer er låst
-        </div>
-      )}
-    </aside>
+            {chip.values.updated
+              ? signedPercent(chip.values.todayPercent)
+              : "—"}
+          </em>
+        </button>
+      ))}
+    </div>
   );
 }
 
