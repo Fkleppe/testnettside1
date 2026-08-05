@@ -62,7 +62,12 @@ import {
   STORAGE_KEYS,
   type PortfolioData,
 } from "@/lib/storage";
-import { decideMerge, fetchRemote, pushRemote } from "@/lib/sync";
+import {
+  decideMerge,
+  fetchRemote,
+  mergeFreshPrices,
+  pushRemote,
+} from "@/lib/sync";
 import type { SyncState } from "@/components/data-safety";
 import {
   buildProjectionPath,
@@ -421,7 +426,10 @@ export function Portfolio() {
         remote,
       );
       if (decision.action === "take-remote") {
-        replaceAll(decision.data);
+        replaceAll({
+          ...decision.data,
+          holdings: mergeFreshPrices(decision.data.holdings, localData.holdings),
+        });
       } else {
         setSnapshots((current) => mergeSnapshots(current, decision.snapshots));
         if (decision.pushLocal) {
@@ -483,9 +491,13 @@ export function Portfolio() {
         );
         if (decision.action === "take-remote") {
           const local = liveSyncData.current;
+          const mergedHoldings = mergeFreshPrices(
+            decision.data.holdings,
+            local.holdings,
+          );
           const sameContent =
             JSON.stringify([local.holdings, local.events]) ===
-            JSON.stringify([decision.data.holdings, decision.data.events]);
+            JSON.stringify([mergedHoldings, decision.data.events]);
           if (sameContent) {
             // Kun savedAt er nyere (typisk vårt eget push fra en annen fane)
             // — adopter stempelet uten re-render, ellers pinger enhetene
@@ -495,7 +507,7 @@ export function Portfolio() {
               mergeSnapshots(current, decision.data.snapshots),
             );
           } else {
-            replaceAll(decision.data);
+            replaceAll({ ...decision.data, holdings: mergedHoldings });
             setSyncState("synced");
           }
         } else {

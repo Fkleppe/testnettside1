@@ -1,5 +1,39 @@
 import { mergeSnapshots, type DailySnapshot } from "./history";
 import type { PortfolioData } from "./storage";
+import type { Holding } from "./types";
+
+/**
+ * Kursferskhet er MONOTON: når fjernkopien vinner flettingen, beholdes
+ * likevel lokale kursfelter per beholdning hvis lokal kursdato er nyere.
+ * Hindrer at en fane/enhet med gammel bundle ruller kursene bakover og
+ * skaper synlig flapping mellom stale og fersk.
+ */
+export function mergeFreshPrices(
+  remote: Holding[],
+  local: Holding[],
+): Holding[] {
+  const localById = new Map(local.map((item) => [item.id, item]));
+  let changed = false;
+  const merged = remote.map((item) => {
+    const mine = localById.get(item.id);
+    if (!mine?.priceDate) return item;
+    if (item.priceDate && item.priceDate >= mine.priceDate) return item;
+    changed = true;
+    return {
+      ...item,
+      price: mine.price,
+      previousPrice: mine.previousPrice,
+      dailyPercent: mine.dailyPercent,
+      changePeriod: mine.changePeriod,
+      priceAsOf: mine.priceAsOf,
+      priceDate: mine.priceDate,
+      source: mine.source,
+      updatedAt: mine.updatedAt,
+      quoteStatus: mine.quoteStatus,
+    };
+  });
+  return changed ? merged : remote;
+}
 
 export type RemoteSnapshot = {
   exists: boolean;

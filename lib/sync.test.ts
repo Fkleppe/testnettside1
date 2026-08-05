@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideMerge, type RemoteSnapshot } from "./sync";
+import { decideMerge, mergeFreshPrices, type RemoteSnapshot } from "./sync";
 import type { DailySnapshot } from "./history";
 import type { Holding } from "./types";
 
@@ -160,5 +160,22 @@ describe("decideMerge", () => {
     );
     if (decision.action !== "keep-local") throw new Error(decision.action);
     expect(decision.snapshots[0].value).toBe(200);
+  });
+});
+
+describe("mergeFreshPrices", () => {
+  const base = holding("a");
+  it("lar aldri eldre kursdato overskrive nyere", () => {
+    const local = [{ ...base, price: 110, priceDate: "2026-08-03" }];
+    const remoteStale = [{ ...base, price: 100, priceDate: "2026-08-02" }];
+    const merged = mergeFreshPrices(remoteStale, local);
+    expect(merged[0].price).toBe(110);
+    expect(merged[0].priceDate).toBe("2026-08-03");
+  });
+  it("beholder fjernkursen når den er like fersk eller ferskere", () => {
+    const local = [{ ...base, price: 110, priceDate: "2026-08-03" }];
+    const remoteFresh = [{ ...base, price: 120, priceDate: "2026-08-04" }];
+    expect(mergeFreshPrices(remoteFresh, local)[0].price).toBe(120);
+    expect(mergeFreshPrices(remoteFresh, local)).toBe(remoteFresh);
   });
 });
