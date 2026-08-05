@@ -4331,3 +4331,100 @@ footer small {
 .app-shell footer {
   background: transparent;
 }
+
+/* ===== De-AI: redaksjonelle grep — færre bokser, mer holdning ===== */
+.app-shell .dash-hero .equity-card {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+.app-shell .dash-hero .equity-top {
+  height: auto;
+  padding: 6px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.app-shell .dash-hero .equity-history {
+  border-top: 0;
+}
+.app-shell .dash-hero .history-ranges {
+  padding-left: 0;
+  padding-right: 0;
+}
+.app-shell .dash-hero .range-row {
+  border-bottom: 0;
+  border-top: 1px solid var(--line);
+  padding-left: 0;
+  padding-right: 0;
+  background: transparent;
+}
+.app-shell .dash-hero .range-row > div.selected {
+  background: transparent;
+  outline: 1px solid var(--line);
+}
+.app-shell .equity-top h2 {
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 3.6vw, 3.6rem);
+  font-weight: 560;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+.app-shell .equity-top > div > span,
+.app-shell .data-coverage > span,
+.app-shell .card-context,
+.app-shell .holding-head span {
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--quiet);
+}
+/* Ett modig fargefelt: Dagens utvikling som blekkgrønt panel */
+.app-shell .today-card {
+  --text: oklch(97% 0.01 120);
+  --muted: oklch(80% 0.03 150);
+  --quiet: oklch(72% 0.04 150);
+  --positive: oklch(82% 0.13 150);
+  --negative: oklch(80% 0.12 30);
+  --line-soft: oklch(38% 0.05 160);
+  --surface-active: oklch(34% 0.05 160);
+  border: 0;
+  background:
+    radial-gradient(
+      120% 110% at 100% 0%,
+      oklch(34% 0.07 165 / 0.9),
+      transparent 60%
+    ),
+    oklch(27% 0.05 160);
+  color: var(--text);
+  box-shadow: 0 14px 40px oklch(30% 0.05 160 / 0.28);
+}
+.app-shell .today-card .card-title-row h2 {
+  color: var(--text);
+}
+.app-shell .today-card .coverage span {
+  background: oklch(38% 0.05 160);
+}
+/* Chips: flate, redaksjonelle — hårlinjer, ikke bokser */
+.app-shell .acct-chip {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px 10px 4px;
+}
+.app-shell .account-chips {
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0;
+}
+.app-shell .acct-chip:hover {
+  background: transparent;
+}
+.app-shell .acct-chip.on {
+  background: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--text);
+  box-shadow: none;
+}
