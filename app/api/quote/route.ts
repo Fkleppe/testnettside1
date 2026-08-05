@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         `${base}/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=nok&include_24hr_change=true&include_last_updated_at=true`,
         {
           headers: key ? { "x-cg-demo-api-key": key } : {},
-          next: { revalidate: 30 },
+          next: { revalidate: 120 },
         },
       );
       if (!response.ok) throw new Error("Kunne ikke hente kryptokurs.");
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
           resolvedId = found.id;
           const retry = await fetch(
             `${base}/simple/price?ids=${encodeURIComponent(resolvedId)}&vs_currencies=nok&include_24hr_change=true&include_last_updated_at=true`,
-            { headers: key ? { "x-cg-demo-api-key": key } : {}, next: { revalidate: 30 } },
+            { headers: key ? { "x-cg-demo-api-key": key } : {}, next: { revalidate: 120 } },
           );
           if (retry.ok) data = await retry.json();
         }
