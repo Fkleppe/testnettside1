@@ -33,6 +33,8 @@ export type Holding = {
   /** @deprecated Kept only to migrate older data stored in the browser. */
   delayed?: boolean;
   accountGroup?: AccountGroup;
+  /** Skattemessig innpakning: "ask" = aksjesparekonto (utsatt gevinstskatt). */
+  wrapper?: "ask" | "none";
 };
 
 export type PortfolioEvent = {

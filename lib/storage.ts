@@ -32,6 +32,7 @@ const holdingSchema = z
     priceAsOf: z.string().optional(),
     delayed: z.boolean().optional(),
     accountGroup: z.enum(["private", "business", "family", "pension"]).optional(),
+    wrapper: z.enum(["ask", "none"]).optional(),
   })
   .passthrough();
 

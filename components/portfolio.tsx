@@ -895,7 +895,7 @@ export function Portfolio() {
               active={activeAccount}
               onChange={setActiveAccount}
             />
-            <TaxPanel holdings={visibleHoldings} />
+            <TaxPanel holdings={visibleHoldings} events={events} />
             <FeesCard holdings={visibleHoldings} />
             <ActivityPanel events={events} activeAccount={activeAccount} />
           </div>
@@ -943,7 +943,9 @@ export function Portfolio() {
               <div className="holding-head">
                 <span>Investering</span>
                 <span>Konto</span>
+                <span>Trend 30d</span>
                 <span>Verdi</span>
+                <span>Avkastning</span>
                 <span>I dag</span>
                 <span />
               </div>
@@ -1980,6 +1982,77 @@ function BreakdownPanel({
   );
 }
 
+const sparkHistoryCache = new Map<
+  string,
+  Promise<{ date: string; price: number }[]>
+>();
+
+/** 30-dagers pristrend per rad — ekte kurshistorikk fra /api/history,
+ *  modul-cachet så listen aldri utløser mer enn ett kall per instrument. */
+function HoldingSpark({ item }: { item: Holding }) {
+  const [points, setPoints] = useState<{ price: number }[] | null>(null);
+  useEffect(() => {
+    if (item.mode !== "automatic") return;
+    const key = `${item.kind}:${item.symbol}`;
+    if (!sparkHistoryCache.has(key)) {
+      sparkHistoryCache.set(
+        key,
+        fetch(
+          `/api/history?symbol=${encodeURIComponent(item.symbol)}&kind=${item.kind}`,
+        )
+          .then((response) => (response.ok ? response.json() : { points: [] }))
+          .then((json) => (Array.isArray(json.points) ? json.points : []))
+          .catch(() => []),
+      );
+    }
+    let cancelled = false;
+    void sparkHistoryCache.get(key)?.then((all) => {
+      if (!cancelled) setPoints(all.slice(-31));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [item.kind, item.symbol, item.mode]);
+  if (!points || points.length < 5) {
+    return <span className="asset-trend empty" aria-hidden="true" />;
+  }
+  const prices = points.map((point) => point.price);
+  let min = Math.min(...prices);
+  let max = Math.max(...prices);
+  if (min === max) {
+    min -= 1;
+    max += 1;
+  }
+  const coords = prices.map((price, index) => ({
+    x: (index / (prices.length - 1)) * 100,
+    y: 4 + (1 - (price - min) / (max - min)) * 24,
+  }));
+  const line = coords
+    .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)},${c.y.toFixed(2)}`)
+    .join("");
+  const changePercent = (prices[prices.length - 1] / prices[0] - 1) * 100;
+  const color = changePercent >= 0 ? "var(--positive)" : "var(--negative)";
+  return (
+    <div
+      className="asset-trend"
+      title={`Siste 30 dager: ${signedPercent(changePercent)}`}
+    >
+      <svg viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+        <path d={`${line}L100,32L0,32Z`} fill={color} fillOpacity="0.13" />
+        <path
+          d={line}
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
 function HoldingRow({
   item,
   advanced,
@@ -2048,9 +2121,20 @@ function HoldingRow({
           <span>{accountConfig[account].label}</span>
         )}
       </div>
+      <HoldingSpark item={item} />
       <div className="asset-value">
         <b>{money.format(value)}</b>
         <small>{number.format(item.units)} andeler</small>
+      </div>
+      <div
+        className={`asset-return ${value - item.cost >= 0 ? "positive" : "negative"}`}
+      >
+        <b>
+          {item.cost > 0
+            ? signedPercent(((value - item.cost) / item.cost) * 100)
+            : "—"}
+        </b>
+        <small>{signedMoney(value - item.cost)}</small>
       </div>
       <div
         className={`asset-change ${hasDaily ? (today >= 0 ? "positive" : "negative") : quote.tone === "warning" ? "warning" : "waiting"}`}
@@ -2119,6 +2203,7 @@ function AddPanel({
   const [kind, setKind] = useState<AssetKind>("fund");
   const [mode, setMode] = useState<PriceMode>("automatic");
   const [accountGroup, setAccountGroup] = useState<AccountGroup>("private");
+  const [wrapper, setWrapper] = useState<"ask" | "none">("none");
   const [entryMethod, setEntryMethod] = useState<"value" | "units">("value");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Instrument | null>(null);
@@ -2265,6 +2350,7 @@ function AddPanel({
       quoteStatus: mode === "manual" ? "manual_override" : undefined,
       priceAsOf: quoteAsOf || undefined,
       accountGroup,
+      wrapper: kind === "crypto" ? undefined : wrapper,
     });
   }
 
@@ -2455,6 +2541,21 @@ function AddPanel({
               </div>
             </label>
           </div>
+          {kind !== "crypto" ? (
+            <label className="ask-toggle">
+              <input
+                type="checkbox"
+                checked={wrapper === "ask"}
+                onChange={(event) =>
+                  setWrapper(event.target.checked ? "ask" : "none")
+                }
+              />
+              <span>
+                <b>Aksjesparekonto (ASK)</b>
+                <small>Gevinstskatt utsettes til uttak utover innskudd</small>
+              </span>
+            </label>
+          ) : null}
           <fieldset className="entry-choice">
             <legend>Hva vil du skrive inn?</legend>
             <button
@@ -2806,6 +2907,7 @@ function EditPanel({
   );
   const [platform, setPlatform] = useState(item.platform);
   const [accountGroup, setAccountGroup] = useState(getAccount(item));
+  const [wrapper, setWrapper] = useState<"ask" | "none">(item.wrapper ?? "none");
   const [mode, setMode] = useState<PriceMode>(item.mode);
   const [quoteSource, setQuoteSource] = useState(item.source);
   const [quoteAsOf, setQuoteAsOf] = useState(item.priceAsOf ?? "");
@@ -2874,6 +2976,7 @@ function EditPanel({
       priceDate,
       quoteStatus: mode === "manual" ? "manual_override" : undefined,
       priceAsOf: quoteAsOf || undefined,
+      wrapper: item.kind === "crypto" ? undefined : wrapper,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -2977,6 +3080,21 @@ function EditPanel({
               </div>
             </label>
           </div>
+          {item.kind !== "crypto" ? (
+            <label className="ask-toggle">
+              <input
+                type="checkbox"
+                checked={wrapper === "ask"}
+                onChange={(event) =>
+                  setWrapper(event.target.checked ? "ask" : "none")
+                }
+              />
+              <span>
+                <b>Aksjesparekonto (ASK)</b>
+                <small>Gevinstskatt utsettes til uttak utover innskudd</small>
+              </span>
+            </label>
+          ) : null}
           <fieldset className="entry-choice">
             <legend>Endre gjeldende beholdning som</legend>
             <button

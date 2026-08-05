@@ -1,4 +1,4 @@
-import type { Holding } from "./types";
+import type { Holding, PortfolioEvent } from "./types";
 import { holdingValue } from "./portfolio";
 
 /**
@@ -11,76 +11,115 @@ export const TAX_RATES = {
   crypto: 0.22,
 } as const;
 
-export type TaxEstimateLine = {
-  label: string;
-  gain: number;
-  loss: number;
-  rate: number;
-  tax: number;
-  deduction: number;
-};
+/** Skjermingsrente for inntektsåret 2025 — siste kunngjorte sats fra
+ *  Skatteetaten (2026-satsen fastsettes januar 2027). */
+export const SKJERMING_RATE = 0.035;
 
-export type TaxEstimate = {
-  lines: TaxEstimateLine[];
-  totalGain: number;
-  totalLoss: number;
-  totalTax: number;
-  totalDeduction: number;
+export type SaleFees = Record<string, number>;
+
+export type SaleEstimate = {
+  gross: number;
+  fees: number;
+  /** Skjermingsfradrag brukt mot gevinst utenfor ASK. */
+  shielding: number;
+  /** Skatt som utløses ved salg i dag (utenfor ASK). */
+  taxNow: number;
+  /** Skatteverdi av netto tap — kommer til fradrag, utbetales ikke ved salget. */
+  deductionNow: number;
+  /** Latent skatt på gevinst i ASK — utløses først ved uttak utover innskudd. */
+  deferredTax: number;
+  askValue: number;
+  /** Netto utbetalt i dag: brutto − gebyrer − skatt som utløses. */
   net: number;
+  /** true når minst én beholdning mangler kjøpshendelse — skjermingsår settes
+   *  da konservativt til 0 for den beholdningen. */
+  unknownYears: boolean;
 };
 
-function rateFor(kind: Holding["kind"]) {
-  return kind === "crypto" ? TAX_RATES.crypto : TAX_RATES.equity;
-}
-
-function labelFor(kind: Holding["kind"]) {
-  if (kind === "crypto") return "Krypto (22 %)";
-  if (kind === "stock") return "Aksjer (37,84 %)";
-  return "Aksjefond (37,84 %)";
+function firstPurchaseYears(events: PortfolioEvent[]): Map<string, number> {
+  const byHolding = new Map<string, number>();
+  for (const event of events) {
+    const year = new Date(event.date).getFullYear();
+    if (!Number.isFinite(year)) continue;
+    const current = byHolding.get(event.holdingId);
+    if (current === undefined || year < current) {
+      byHolding.set(event.holdingId, year);
+    }
+  }
+  return byHolding;
 }
 
 /**
- * Estimerer skatt hvis alt selges i dag. Skjermingsfradrag og eventuell
- * ASK/fondskonto-utsettelse er ikke medregnet — estimatet er derfor et
- * øvre anslag for gevinstskatten.
+ * Estimerer hva et fullt salg i dag gir: brutto verdi, salgsgebyrer per
+ * plattform, skjermingsfradrag (kostpris × skjermingsrente × hele eierår —
+ * skjerming tildeles per 31.12, så salgsåret gir ingen skjerming), skatt som
+ * utløses nå, og utsatt skatt for beholdninger i aksjesparekonto (ASK).
+ * Gebyrer trekkes fra utgangsverdien før gevinstberegning (omkostninger ved
+ * salg er fradragsberettiget). Tap samordnes mot gevinst per sats.
  */
-export function estimateRealizationTax(holdings: Holding[]): TaxEstimate {
-  const byKind = new Map<Holding["kind"], TaxEstimateLine>();
+export function estimateSaleProceeds(
+  holdings: Holding[],
+  events: PortfolioEvent[],
+  saleFees: SaleFees = {},
+  now: Date = new Date(),
+): SaleEstimate {
+  const currentYear = now.getFullYear();
+  const purchaseYears = firstPurchaseYears(events);
+  const buckets = new Map<number, number>();
+  let gross = 0;
+  let fees = 0;
+  let shielding = 0;
+  let deferredTax = 0;
+  let askValue = 0;
+  let unknownYears = false;
+
   for (const item of holdings) {
-    const gain = holdingValue(item) - item.cost;
-    const line = byKind.get(item.kind) ?? {
-      label: labelFor(item.kind),
-      gain: 0,
-      loss: 0,
-      rate: rateFor(item.kind),
-      tax: 0,
-      deduction: 0,
-    };
-    const next = {
-      ...line,
-      gain: line.gain + Math.max(0, gain),
-      loss: line.loss + Math.min(0, gain),
-    };
-    byKind.set(item.kind, next);
+    const value = holdingValue(item);
+    const fee = value * ((saleFees[item.platform] ?? 0) / 100);
+    gross += value;
+    fees += fee;
+
+    const gain = value - fee - item.cost;
+    const rate = item.kind === "crypto" ? TAX_RATES.crypto : TAX_RATES.equity;
+    const inAsk = item.wrapper === "ask" && item.kind !== "crypto";
+
+    let shield = 0;
+    if (item.kind !== "crypto" && gain > 0) {
+      const firstYear = purchaseYears.get(item.id);
+      if (firstYear === undefined) {
+        unknownYears = true;
+      } else {
+        const years = Math.max(0, currentYear - firstYear);
+        shield = Math.min(gain, item.cost * SKJERMING_RATE * years);
+      }
+    }
+
+    if (inAsk) {
+      askValue += value;
+      const taxable = gain - shield;
+      if (taxable > 0) deferredTax += taxable * rate;
+      continue;
+    }
+    shielding += shield;
+    buckets.set(rate, (buckets.get(rate) ?? 0) + gain - shield);
   }
-  const lines = [...byKind.values()].map((line) => {
-    const netGain = line.gain + line.loss;
-    return {
-      ...line,
-      tax: netGain > 0 ? netGain * line.rate : 0,
-      deduction: netGain < 0 ? -netGain * line.rate : 0,
-    };
-  });
-  const totalGain = lines.reduce((sum, line) => sum + line.gain, 0);
-  const totalLoss = lines.reduce((sum, line) => sum + line.loss, 0);
-  const totalTax = lines.reduce((sum, line) => sum + line.tax, 0);
-  const totalDeduction = lines.reduce((sum, line) => sum + line.deduction, 0);
+
+  let taxNow = 0;
+  let deductionNow = 0;
+  for (const [rate, netTaxable] of buckets) {
+    if (netTaxable > 0) taxNow += netTaxable * rate;
+    else deductionNow += -netTaxable * rate;
+  }
+
   return {
-    lines,
-    totalGain,
-    totalLoss,
-    totalTax,
-    totalDeduction,
-    net: totalGain + totalLoss - totalTax + totalDeduction,
+    gross,
+    fees,
+    shielding,
+    taxNow,
+    deductionNow,
+    deferredTax,
+    askValue,
+    net: gross - fees - taxNow,
+    unknownYears,
   };
 }
