@@ -343,17 +343,31 @@ export function Portfolio() {
         return;
       }
       const result = loadPortfolio(localStorage);
-      if (result.status === "ok") {
-        lastSeenSavedAt.current = result.savedAt;
-        setHoldings(result.data.holdings.map(migrateHolding));
-        setEvents(result.data.events);
-        // Fletting, ikke erstatning: en annen fane med eldre klient skal
-        // aldri kunne nulle historikken i denne fanen.
-        setSnapshots((current) =>
-          mergeSnapshots(current, result.data.snapshots),
-        );
-        setDataState("user");
+      if (result.status !== "ok") return;
+      // Ekko-vakt: hendelser fra egne/eldre skriv ignoreres, ellers setter
+      // to åpne faner hverandres state i evig løkke (alt re-rendres i takt
+      // med lagringen — «hakker hvert 2. sekund»).
+      if (
+        result.savedAt &&
+        lastSeenSavedAt.current &&
+        result.savedAt <= lastSeenSavedAt.current
+      ) {
+        return;
       }
+      lastSeenSavedAt.current = result.savedAt;
+      const mine = liveSyncData.current;
+      const incoming = mergeFreshPrices(
+        result.data.holdings.map(migrateHolding),
+        mine.holdings,
+      );
+      const sameContent =
+        JSON.stringify([mine.holdings, mine.events]) ===
+        JSON.stringify([incoming, result.data.events]);
+      setSnapshots((current) => mergeSnapshots(current, result.data.snapshots));
+      if (sameContent) return;
+      setHoldings(incoming);
+      setEvents(result.data.events);
+      setDataState("user");
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
