@@ -739,7 +739,7 @@ h3 {
 }
 
 .equity-card {
-  height: 530px;
+  height: auto;
 }
 .equity-top {
   height: 105px;
@@ -778,7 +778,6 @@ h3 {
 }
 .data-coverage b {
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
 }
 .history-empty {
   position: relative;
@@ -862,7 +861,6 @@ h3 {
 }
 .history-ranges > b {
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .history-chart {
@@ -892,7 +890,6 @@ h3 {
   color: var(--muted);
   font-size: 0.625rem;
   line-height: 1.4;
-  font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
 .axis-label.max {
@@ -944,11 +941,9 @@ h3 {
 }
 .history-tooltip b {
   font-size: 0.8125rem;
-  font-variant-numeric: tabular-nums;
 }
 .history-tooltip > span {
   font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
 }
 .history-range-note {
   height: 100%;
@@ -1137,7 +1132,6 @@ h3 {
 }
 .mover-row em b {
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
 }
 .range-row {
   height: 62px;
@@ -1166,26 +1160,6 @@ h3 {
   color: var(--text);
   font-size: 0.75rem;
   line-height: 1.3333333333;
-}
-.equity-links > div {
-  width: 100%;
-  height: 51px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--line-soft);
-  padding: 0 20px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.3333333333;
-}
-.equity-links > div:last-child {
-  border-bottom: 0;
-}
-.equity-links b {
-  color: var(--text);
-  font-size: 0.75rem;
 }
 
 .today-card {
@@ -2664,7 +2638,6 @@ footer small {
 .asset-value,
 .asset-change {
   font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
 }
 .spin {
   animation: spin 1s linear infinite;
@@ -3161,7 +3134,6 @@ footer small {
 }
 .tax-row b {
   color: var(--text);
-  font-variant-numeric: tabular-nums;
 }
 .tax-total {
   border-top: 1px solid var(--line-soft);
@@ -3780,7 +3752,6 @@ footer small {
 .ld-mini-row b {
   margin-left: auto;
   color: var(--text);
-  font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 .ld-mini-row b.positive {
@@ -4115,4 +4086,8 @@ footer small {
   .ld-shot {
     animation: none;
   }
+}
+
+.quality-list > div.is-zero {
+  opacity: 0.45;
 }

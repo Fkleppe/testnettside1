@@ -184,6 +184,24 @@ export function Portfolio() {
       { lastSeenSavedAt: lastSeenSavedAt.current },
     );
   }, [holdings, events, snapshots, dataState]);
+  /** NAV publiseres maks én gang per virkedag, men publiseringstidspunktet
+   *  varierer — re-poll mens appen er åpen så ny kurs fanges raskt. Oppdaterer
+   *  bare state når kurs/status faktisk endret seg. */
+  useEffect(() => {
+    if (dataState !== "user" || holdings.length === 0) return;
+    const timer = window.setInterval(() => {
+      void refreshOfficialFunds(holdings).then((next) => {
+        const changed = next.some(
+          (item, index) =>
+            item.price !== holdings[index]?.price ||
+            item.priceAsOf !== holdings[index]?.priceAsOf ||
+            item.quoteStatus !== holdings[index]?.quoteStatus,
+        );
+        if (changed) setHoldings(next);
+      });
+    }, 15 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [holdings, dataState]);
   /** Ett historikkpunkt per dag; dagens punkt følger siste observerte verdi.
    *  upsertDailySnapshot er referansestabil uten endring — ingen løkke. */
   useEffect(() => {
@@ -534,7 +552,6 @@ export function Portfolio() {
           </div>
           <div className="center-column">
             <EquityPanel
-              holdings={visibleHoldings}
               totals={totals}
               activeAccount={activeAccount}
               snapshots={dataState === "user" ? snapshots : []}
@@ -788,12 +805,10 @@ function AccountRail({
 }
 
 function EquityPanel({
-  holdings,
   totals,
   activeAccount,
   snapshots,
 }: {
-  holdings: Holding[];
   totals: ReturnType<typeof calculateTotals>;
   activeAccount: AccountFilter;
   snapshots: DailySnapshot[];
@@ -802,14 +817,6 @@ function EquityPanel({
     () => snapshotPoints(snapshots, activeAccount),
     [snapshots, activeAccount],
   );
-  const states = holdings.map((item) => getQuoteState(item));
-  const withinWindow = states.filter(
-    (state) =>
-      state.code === "awaiting_market_close" ||
-      state.code === "within_publication_window" ||
-      state.code === "official_previous",
-  ).length;
-  const late = states.filter((state) => state.code === "source_late").length;
   return (
     <section className="equity-card">
       <div className="equity-top">
@@ -875,20 +882,6 @@ function EquityPanel({
           <b className={totals.total >= 0 ? "positive" : "negative"}>
             {signedMoney(totals.total)}
           </b>
-        </div>
-      </div>
-      <div className="equity-links">
-        <div>
-          <span>Dagens utvikling tilgjengelig</span>
-          <b>
-            {totals.updated} av {totals.positions}
-          </b>
-        </div>
-        <div>
-          <span>
-            {late ? "Datakilde etter fristen" : "Innen normal publisering"}
-          </span>
-          <b>{late || withinWindow}</b>
         </div>
       </div>
     </section>
@@ -967,34 +960,22 @@ function DataPanel({ holdings }: { holdings: Holding[] }) {
         </div>
       </div>
       <div className="quality-list">
-        <div>
-          <span className="quality-dot live" />
-          <p>
-            <b>Dagens utvikling tilgjengelig</b>
-            <small>{current} investeringer</small>
-          </p>
-        </div>
-        <div>
-          <span className="quality-dot nav" />
-          <p>
-            <b>Innen normal publisering</b>
-            <small>{normal} investeringer</small>
-          </p>
-        </div>
-        <div>
-          <span className="quality-dot late" />
-          <p>
-            <b>Datakilde etter fristen</b>
-            <small>{late} investeringer</small>
-          </p>
-        </div>
-        <div>
-          <span className="quality-dot manual" />
-          <p>
-            <b>Manuelt registrert</b>
-            <small>{manual} investeringer</small>
-          </p>
-        </div>
+        {(
+          [
+            ["live", "Dagens utvikling tilgjengelig", current],
+            ["nav", "Innen normal publisering", normal],
+            ["late", "Datakilde etter fristen", late],
+            ["manual", "Manuelt registrert", manual],
+          ] as const
+        ).map(([tone, label, count]) => (
+          <div key={tone} className={count === 0 ? "is-zero" : undefined}>
+            <span className={`quality-dot ${tone}`} />
+            <p>
+              <b>{label}</b>
+              <small>{count} investeringer</small>
+            </p>
+          </div>
+        ))}
       </div>
       <div className={`quality-message ${late ? "has-warning" : ""}`}>
         <CircleHelp size={22} />
