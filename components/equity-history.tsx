@@ -179,6 +179,15 @@ export function EquityHistory({ points }: { points: HistoryPoint[] }) {
             </button>
           ))}
         </div>
+        <span className="history-flex-spacer" />
+        {visible.some((point) => point.origin === "rec") ? (
+          <span
+            className="history-provenance"
+            title="Beregnet fra dagens beholdning × ekte kurshistorikk. Observerte daglige punkter tar over etter hvert."
+          >
+            Delvis rekonstruert
+          </span>
+        ) : null}
         {geometry ? (
           <b className={positive ? "positive" : "negative"}>
             {signedPercent((geometry.change / (visible[0].value || 1)) * 100)} ·{" "}

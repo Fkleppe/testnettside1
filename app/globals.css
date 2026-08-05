@@ -833,7 +833,6 @@ h3 {
 .history-ranges {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 10px 20px 4px;
 }
@@ -4101,4 +4100,18 @@ footer small {
 
 .quality-list > div.is-zero {
   opacity: 0.45;
+}
+
+.history-flex-spacer {
+  flex: 1;
+}
+.history-provenance {
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  padding: 3px 9px;
+  color: var(--quiet);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }

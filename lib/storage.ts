@@ -153,7 +153,9 @@ function recoverSnapshotsFromBackups(store: StorageLike): DailySnapshot[] {
       const envelope = envelopeSchema.parse(JSON.parse(raw));
       recovered = mergeSnapshots(
         recovered,
-        salvageSnapshots(envelope.snapshots),
+        salvageSnapshots(envelope.snapshots).filter(
+          (item) => item.origin !== "rec",
+        ),
       );
     } catch {
       // Uleselige sikkerhetskopier hoppes over her; de listes fortsatt.
@@ -283,9 +285,13 @@ export function savePortfolio(
       const intentionalReset =
         data.holdings.length === 0 && data.snapshots.length === 0;
       if (!intentionalReset) {
+        // Kun observerte punkter vernes — rekonstruerte regenereres uansett
+        // og skal ikke gjenoppstå etter at beholdningen er endret.
         snapshots = mergeSnapshots(
           snapshots,
-          salvageSnapshots(existing.snapshots),
+          salvageSnapshots(existing.snapshots).filter(
+            (item) => item.origin !== "rec",
+          ),
         );
       }
     } catch {

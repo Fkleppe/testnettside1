@@ -3,13 +3,16 @@ import { holdingValue } from "./portfolio";
 
 export type SnapshotGroupTotals = { value: number; cost: number };
 
-/** Ett datapunkt per kalenderdag: porteføljens sist observerte verdi den dagen. */
+/** Ett datapunkt per kalenderdag: porteføljens sist observerte verdi den
+ *  dagen. `origin: "rec"` = rekonstruert fra kurshistorikk (dagens enheter ×
+ *  historisk kurs); uten origin = ekte observasjon. */
 export type DailySnapshot = {
   date: string;
   capturedAt: string;
   value: number;
   cost: number;
   groups: Partial<Record<AccountGroup, SnapshotGroupTotals>>;
+  origin?: "rec";
 };
 
 export type HistoryRange = "1w" | "1m" | "3m" | "1y" | "max";
@@ -136,7 +139,12 @@ export function filterRange<T extends { date: string }>(
   return snapshots.filter((item) => item.date >= cutoffKey);
 }
 
-export type HistoryPoint = { date: string; value: number; cost: number };
+export type HistoryPoint = {
+  date: string;
+  value: number;
+  cost: number;
+  origin?: "rec";
+};
 
 /** Tidsserie for valgt konto; dager uten data for kontoen utelates. */
 export function snapshotPoints(
@@ -144,12 +152,24 @@ export function snapshotPoints(
   account: "all" | AccountGroup,
 ): HistoryPoint[] {
   if (account === "all") {
-    return snapshots.map(({ date, value, cost }) => ({ date, value, cost }));
+    return snapshots.map(({ date, value, cost, origin }) => ({
+      date,
+      value,
+      cost,
+      origin,
+    }));
   }
   const points: HistoryPoint[] = [];
   for (const item of snapshots) {
     const group = item.groups[account];
-    if (group) points.push({ date: item.date, value: group.value, cost: group.cost });
+    if (group) {
+      points.push({
+        date: item.date,
+        value: group.value,
+        cost: group.cost,
+        origin: item.origin,
+      });
+    }
   }
   return points;
 }

@@ -48,6 +48,11 @@ import {
   upsertDailySnapshot,
   type DailySnapshot,
 } from "@/lib/history";
+import {
+  applyReconstruction,
+  reconstructSnapshots,
+  type PriceSeries,
+} from "@/lib/reconstruct";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
 import {
@@ -201,6 +206,84 @@ export function Portfolio() {
       });
     }, 15 * 60 * 1000);
     return () => window.clearInterval(timer);
+  }, [holdings, dataState]);
+  /** Rekonstruert historikk: dagens beholdning × ekte kurshistorikk gir en
+   *  graf fra dag én. Kjøres når porteføljens sammensetning endres; ferske
+   *  serier oppdaterer også fondskurser som er eldre enn kilden. */
+  const reconstructedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (dataState !== "user" || holdings.length === 0) return;
+    const signature = holdings
+      .map((item) => `${item.kind}:${item.symbol}:${item.units}`)
+      .sort()
+      .join("|");
+    if (reconstructedFor.current === signature) return;
+    reconstructedFor.current = signature;
+    const unique = [
+      ...new Map(
+        holdings.map((item) => [item.symbol.toUpperCase(), item]),
+      ).values(),
+    ];
+    void (async () => {
+      const series: PriceSeries = new Map();
+      await Promise.all(
+        unique.map(async (item) => {
+          try {
+            const response = await fetch(
+              `/api/history?symbol=${encodeURIComponent(item.symbol)}&kind=${item.kind}`,
+            );
+            if (!response.ok) return;
+            const json = await response.json();
+            if (Array.isArray(json.points) && json.points.length > 1) {
+              series.set(item.symbol.toUpperCase(), json.points);
+            }
+          } catch {
+            // Manglende historikk for ett instrument stopper ikke resten.
+          }
+        }),
+      );
+      if (series.size === 0) return;
+      setSnapshots((current) => {
+        const observedDates = new Set(
+          current
+            .filter((item) => item.origin !== "rec")
+            .map((item) => item.date),
+        );
+        const reconstructed = reconstructSnapshots(
+          holdings,
+          series,
+          observedDates,
+        );
+        return applyReconstruction(current, reconstructed);
+      });
+      // Ferskere sluttkurs i serien enn på beholdningen? Oppdater fondet.
+      setHoldings((current) => {
+        let changed = false;
+        const next = current.map((item) => {
+          if (item.kind !== "fund" || item.mode !== "automatic") return item;
+          const points = series.get(item.symbol.toUpperCase());
+          if (!points || points.length < 2) return item;
+          const last = points[points.length - 1];
+          const previous = points[points.length - 2];
+          if (item.priceDate && item.priceDate >= last.date) return item;
+          changed = true;
+          return {
+            ...item,
+            price: last.price,
+            previousPrice: previous.price,
+            dailyPercent:
+              previous.price > 0
+                ? ((last.price - previous.price) / previous.price) * 100
+                : item.dailyPercent,
+            changePeriod: "day" as const,
+            priceDate: last.date,
+            source: "Fondsportalen · offisiell NAV",
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        return changed ? next : current;
+      });
+    })();
   }, [holdings, dataState]);
   /** Ett historikkpunkt per dag; dagens punkt følger siste observerte verdi.
    *  upsertDailySnapshot er referansestabil uten endring — ingen løkke. */
