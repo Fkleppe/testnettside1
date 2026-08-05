@@ -173,7 +173,6 @@ export function Portfolio() {
         setSnapshots(result.data.snapshots);
         lastSeenSavedAt.current = result.savedAt;
         setDataState("user");
-        void refreshOfficialFunds(migrated).then(setHoldings);
       } else if (result.status === "corrupt") {
         setCorruptKey(result.corruptKey);
         setDataState("corrupt");
@@ -191,6 +190,41 @@ export function Portfolio() {
       { lastSeenSavedAt: lastSeenSavedAt.current },
     );
   }, [holdings, events, snapshots, dataState]);
+  /** Kursrefresh følger ENHVER beholdningsendring — også når synk ved
+   *  innlogging erstatter beholdningene med skyens (potensielt stale) kopi.
+   *  Signaturvakt + endringsdeteksjon hindrer løkker; flettes per id så
+   *  parallelle endringer ikke klobres. */
+  const refreshedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (dataState !== "user" || holdings.length === 0) return;
+    const signature = holdings
+      .map((h) => `${h.id}:${h.symbol}:${h.mode}:${h.priceDate ?? ""}`)
+      .sort()
+      .join("|");
+    if (refreshedFor.current === signature) return;
+    refreshedFor.current = signature;
+    void refreshOfficialFunds(holdings).then((next) => {
+      const byId = new Map(next.map((h) => [h.id, h]));
+      setHoldings((current) => {
+        let changed = false;
+        const merged = current.map((item) => {
+          const fresh = byId.get(item.id);
+          if (!fresh || fresh === item) return item;
+          if (
+            fresh.price !== item.price ||
+            fresh.priceDate !== item.priceDate ||
+            fresh.previousPrice !== item.previousPrice ||
+            fresh.quoteStatus !== item.quoteStatus
+          ) {
+            changed = true;
+            return fresh;
+          }
+          return item;
+        });
+        return changed ? merged : current;
+      });
+    });
+  }, [holdings, dataState]);
   /** NAV publiseres maks én gang per virkedag, men publiseringstidspunktet
    *  varierer — re-poll mens appen er åpen så ny kurs fanges raskt. Oppdaterer
    *  bare state når kurs/status faktisk endret seg. */
