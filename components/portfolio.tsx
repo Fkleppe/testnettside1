@@ -2768,15 +2768,34 @@ async function refreshOfficialFunds(items: Holding[]) {
         if (!response.ok)
           return { ...item, quoteStatus: "source_error" as const };
         const data = await response.json();
+        const newPrice = Number(data.price) || item.price;
+        // Kilden gir bare siste NAV. Dag-over-dag beregnes derfor mot vår
+        // egen forrige kurs når en NYERE NAV-dato kommer inn; samme dato
+        // beholder eksisterende grunnlag (nullstill aldri ved re-poll).
+        let previousPrice = item.previousPrice;
+        let dailyPercent = item.dailyPercent ?? null;
+        let changePeriod = item.changePeriod;
+        if (data.previousPrice) {
+          previousPrice = Number(data.previousPrice);
+          dailyPercent = data.changePercent ?? null;
+          changePeriod = data.changePeriod;
+        } else if (
+          item.priceDate &&
+          data.priceDate &&
+          data.priceDate > item.priceDate &&
+          item.price > 0
+        ) {
+          previousPrice = item.price;
+          dailyPercent = ((newPrice - item.price) / item.price) * 100;
+          changePeriod = "day";
+        }
         return {
           ...item,
           name: data.name ?? item.name,
-          price: Number(data.price) || item.price,
-          previousPrice: data.previousPrice
-            ? Number(data.previousPrice)
-            : undefined,
-          dailyPercent: data.changePercent ?? null,
-          changePeriod: data.changePeriod,
+          price: newPrice,
+          previousPrice,
+          dailyPercent,
+          changePeriod,
           source: data.source ?? item.source,
           priceAsOf: data.asOf ?? item.priceAsOf,
           priceDate: data.priceDate ?? item.priceDate,
