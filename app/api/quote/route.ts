@@ -57,21 +57,43 @@ export async function GET(request: NextRequest) {
         },
       );
       if (!response.ok) throw new Error("Kunne ikke hente kryptokurs.");
-      const data = await response.json();
-      if (!data[id]?.nok) throw new Error("Fant ikke kryptovalutaen.");
+      let data = await response.json();
+      let resolvedId = id;
+      if (!data[id]?.nok) {
+        // Ukjent symbol → slå opp id-en hos CoinGecko og prøv igjen.
+        const searchResponse = await fetch(
+          `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`,
+          { headers: key ? { "x-cg-demo-api-key": key } : {}, next: { revalidate: 86400 } },
+        );
+        const found = searchResponse.ok
+          ? ((await searchResponse.json()).coins ?? []).find(
+              (coin: { symbol?: string; id?: string }) =>
+                String(coin.symbol ?? "").toUpperCase() === symbol,
+            )
+          : null;
+        if (found?.id) {
+          resolvedId = found.id;
+          const retry = await fetch(
+            `${base}/simple/price?ids=${encodeURIComponent(resolvedId)}&vs_currencies=nok&include_24hr_change=true&include_last_updated_at=true`,
+            { headers: key ? { "x-cg-demo-api-key": key } : {}, next: { revalidate: 30 } },
+          );
+          if (retry.ok) data = await retry.json();
+        }
+      }
+      if (!data[resolvedId]?.nok) throw new Error("Fant ikke kryptovalutaen.");
       return NextResponse.json({
         symbol,
-        price: data[id].nok,
-        changePercent: data[id].nok_24h_change ?? 0,
+        price: data[resolvedId].nok,
+        changePercent: data[resolvedId].nok_24h_change ?? 0,
         changePeriod: "24h",
         currency: "NOK",
         source: "CoinGecko · siste 24 timer",
-        updatedAt: data[id].last_updated_at
-          ? new Date(data[id].last_updated_at * 1000).toISOString()
+        updatedAt: data[resolvedId].last_updated_at
+          ? new Date(data[resolvedId].last_updated_at * 1000).toISOString()
           : new Date().toISOString(),
         priceDate: osloDate(
-          data[id].last_updated_at
-            ? new Date(data[id].last_updated_at * 1000)
+          data[resolvedId].last_updated_at
+            ? new Date(data[resolvedId].last_updated_at * 1000)
             : new Date(),
         ),
       });
@@ -134,6 +156,58 @@ export async function GET(request: NextRequest) {
     }
 
     if (kind === "fund") {
+      // Yahoo dekker de fleste norske/europeiske fond (ISIN → 0P…-symbol).
+      try {
+        let yahooSymbol = symbol;
+        if (!symbol.startsWith("0P")) {
+          const searchResponse = await fetch(
+            `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=3&newsCount=0`,
+            { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 604800 } },
+          );
+          const found = searchResponse.ok
+            ? ((await searchResponse.json()).quotes ?? []).find(
+                (item: { quoteType?: string; symbol?: string }) =>
+                  item.quoteType === "MUTUALFUND" && item.symbol,
+              )
+            : null;
+          if (found) yahooSymbol = found.symbol;
+        }
+        const chartResponse = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=5d`,
+          { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 1800 } },
+        );
+        const chart = await chartResponse.json();
+        const result = chart?.chart?.result?.[0];
+        const priceValue = Number(result?.meta?.regularMarketPrice);
+        if (
+          chartResponse.ok &&
+          result &&
+          priceValue > 0 &&
+          (result.meta?.currency ?? "NOK") === "NOK"
+        ) {
+          const previous = Number(
+            result.meta?.chartPreviousClose ?? result.meta?.previousClose,
+          );
+          const stamp = new Date(
+            (result.meta?.regularMarketTime ?? Date.now() / 1000) * 1000,
+          );
+          return NextResponse.json({
+            symbol,
+            name: result.meta?.longName ?? result.meta?.shortName,
+            price: priceValue,
+            previousPrice: previous > 0 ? previous : undefined,
+            changePercent:
+              previous > 0 ? ((priceValue - previous) / previous) * 100 : null,
+            changePeriod: "day",
+            currency: "NOK",
+            source: "Yahoo · NAV",
+            priceDate: osloDate(stamp),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // Faller videre til manuell-melding.
+      }
       return NextResponse.json(
         {
           error:

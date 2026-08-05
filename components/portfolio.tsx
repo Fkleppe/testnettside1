@@ -17,6 +17,7 @@ import {
   CircleHelp,
   Clock3,
   Coins,
+  Download,
   Eye,
   History,
   Landmark,
@@ -1194,6 +1195,70 @@ function TodayPanel({
       : (result?.percent ?? null);
   const tone =
     pnl === null ? "neutral" : pnl >= 0 ? "positive" : "negative";
+  const downloadCard = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1000;
+    canvas.height = 560;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const positive = (pnl ?? 0) >= 0;
+    const bg = ctx.createLinearGradient(0, 0, 1000, 560);
+    bg.addColorStop(0, positive ? "#07200f" : "#230a12");
+    bg.addColorStop(1, positive ? "#02130a" : "#12060b");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 1000, 560);
+    const glow = ctx.createRadialGradient(820, 60, 20, 820, 60, 480);
+    glow.addColorStop(0, positive ? "rgba(74,222,128,0.16)" : "rgba(244,114,182,0.14)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, 1000, 560);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "700 30px 'Inter Variable', Inter, sans-serif";
+    ctx.fillText("Min Sparing", 64, 84);
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "600 24px 'Inter Variable', Inter, sans-serif";
+    const periodLabel =
+      period === "latest"
+        ? changeLabel(totals)
+        : period === "total"
+          ? "PnL · Totalt"
+          : `PnL · ${period === "7d" ? "7 dager" : period === "30d" ? "30 dager" : "1 år"}`;
+    ctx.fillText(periodLabel, 64, 150);
+    ctx.fillStyle = positive ? "#4ade80" : "#f472b6";
+    ctx.font = "800 96px 'Inter Variable', Inter, sans-serif";
+    ctx.fillText(pnl === null ? "—" : signedMoney(pnl), 60, 290);
+    if (percent !== null) {
+      const text = signedPercent(percent);
+      ctx.font = "700 40px 'Inter Variable', Inter, sans-serif";
+      const width = ctx.measureText(text).width + 48;
+      ctx.fillStyle = positive ? "rgba(74,222,128,0.16)" : "rgba(244,114,182,0.16)";
+      ctx.beginPath();
+      ctx.roundRect(60, 330, width, 76, 18);
+      ctx.fill();
+      ctx.fillStyle = positive ? "#86efac" : "#f9a8d4";
+      ctx.fillText(text, 84, 382);
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.font = "500 22px 'Inter Variable', Inter, sans-serif";
+    const note =
+      period === "latest" || period === "total"
+        ? new Date().toLocaleDateString("nb-NO", { day: "numeric", month: "long", year: "numeric" })
+        : result
+          ? `Fra ${formatDateKey(result.fromDate)}${result.deposits > 0 ? " · innskuddsjustert" : ""}`
+          : "";
+    ctx.fillText(note, 64, 470);
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillText("minsparing.vercel.app", 64, 512);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `minsparing-pnl-${period}.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+  };
   const periods: { key: "latest" | PnlPeriod; label: string }[] = [
     { key: "latest", label: "Siste" },
     { key: "7d", label: "7D" },
@@ -1205,6 +1270,14 @@ function TodayPanel({
     <section className="today-card">
       <div className="card-title-row">
         <h2>PnL</h2>
+        <button
+          className="pnl-download"
+          title="Last ned PnL-kort som bilde"
+          aria-label="Last ned PnL-kort som bilde"
+          onClick={downloadCard}
+        >
+          <Download size={13} />
+        </button>
         <div className="pnl-tabs" role="tablist" aria-label="PnL-periode">
           {periods.map((item) => (
             <button
@@ -2008,10 +2081,41 @@ function AddPanel({
   const [previousPrice, setPreviousPrice] = useState<number | undefined>();
   const [priceDate, setPriceDate] = useState<string | undefined>();
   const [changePeriod, setChangePeriod] = useState<"day" | "24h" | undefined>();
-  const matches = useMemo(
+  const localMatches = useMemo(
     () => searchInstruments(kind, search),
     [kind, search],
   );
+  const [remoteMatches, setRemoteMatches] = useState<Instrument[]>([]);
+  useEffect(() => {
+    if (search.trim().length < 2) {
+      queueMicrotask(() => setRemoteMatches([]));
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/search?q=${encodeURIComponent(search)}&kind=${kind}`,
+        );
+        if (!response.ok) return;
+        const json = await response.json();
+        setRemoteMatches(Array.isArray(json.results) ? json.results : []);
+      } catch {
+        // Livesøk nede → lokale treff står seg.
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [kind, search]);
+  const matches = useMemo(() => {
+    const seen = new Set<string>();
+    return [...localMatches, ...remoteMatches]
+      .filter((item) => {
+        const key = item.symbol.toUpperCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 12);
+  }, [localMatches, remoteMatches]);
   const calculatedUnits =
     toNumber(price) > 0 && toNumber(portfolioValue) > 0
       ? toNumber(portfolioValue) / toNumber(price)

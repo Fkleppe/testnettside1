@@ -4808,3 +4808,23 @@ footer small {
 .today-card .today-value b.neutral {
   color: var(--muted) !important;
 }
+
+.pnl-download {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  margin-right: 8px;
+  border: 1px solid oklch(100% 0 0 / 0.15);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.2);
+  color: var(--muted);
+}
+.pnl-download:hover {
+  color: var(--text);
+  background: rgb(255 255 255 / 0.1);
+}
+.today-card .card-title-row {
+  gap: 8px;
+}
