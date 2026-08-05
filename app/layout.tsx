@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@fontsource-variable/schibsted-grotesk";
+import "@fontsource-variable/inter";
 import "./globals.css";
 import { Providers } from "./providers";
 

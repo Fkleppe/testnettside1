@@ -301,9 +301,39 @@ export function savePortfolio(
   data = { ...data, snapshots };
   const savedAt = now.toISOString();
   const envelope = { v: 2 as const, savedAt, ...data };
-  store.setItem(DATA_KEY, JSON.stringify(envelope));
+  // Kvotesikker skriving: full localStorage skal aldri velte appen.
+  // Nødtrapp: beskjær gamle sikkerhetskopier, deretter regenererbar
+  // rekonstruksjon — observerte data ofres aldri.
+  try {
+    store.setItem(DATA_KEY, JSON.stringify(envelope));
+  } catch {
+    pruneStorage(store);
+    try {
+      store.setItem(DATA_KEY, JSON.stringify(envelope));
+    } catch {
+      const slim = {
+        ...envelope,
+        snapshots: envelope.snapshots.filter(
+          (item) => item.origin !== "rec",
+        ),
+      };
+      store.setItem(DATA_KEY, JSON.stringify(slim));
+    }
+  }
   writeRollingBackup(store, envelope, now);
   return savedAt;
+}
+
+/** Beskjærer backup-/korruptnøkler til de 3 nyeste ved kvotepress. */
+function pruneStorage(store: StorageLike) {
+  const keep = 3;
+  const backups = listBackups(store);
+  for (const stale of backups.slice(keep)) {
+    store.removeItem(stale.key);
+  }
+  for (const key of storageKeys(store)) {
+    if (key.startsWith(CORRUPT_PREFIX)) store.removeItem(key);
+  }
 }
 
 function writeRollingBackup(

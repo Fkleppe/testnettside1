@@ -4382,3 +4382,63 @@ footer small {
 .acct-chip {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
 }
+
+.app-error {
+  max-width: 480px;
+  margin: 18vh auto 0;
+  padding: 0 24px;
+  text-align: center;
+}
+.app-error h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.app-error p {
+  margin-top: 10px;
+  color: var(--muted);
+}
+.app-error-detail {
+  font-size: 0.6875rem;
+  color: var(--quiet);
+  word-break: break-all;
+}
+.app-error button {
+  margin-top: 22px;
+  border: 1px solid transparent;
+  border-top: 2px solid oklch(100% 0 0 / 0.5);
+  border-radius: 13px;
+  background: oklch(93% 0.004 150);
+  color: oklch(16% 0.01 150);
+  padding: 10px 22px;
+  font-weight: 700;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.35),
+    inset 0 1px 1px rgb(255 255 255 / 0.8);
+}
+
+/* ===== Underside-typografi: Inter (Great UI-designets font) — kun /app.
+   Inter har ekte tabulartall uten Schibsteds punktum/komma-quirk. ===== */
+.app-shell {
+  --font-ui: "Inter Variable", "Schibsted Grotesk Variable", Arial, sans-serif;
+  --font-data: "Inter Variable", "Schibsted Grotesk Variable", Arial, sans-serif;
+  font-family: var(--font-ui);
+  font-feature-settings:
+    "kern" 1,
+    "tnum" 1,
+    "cv05" 1;
+  letter-spacing: -0.006em;
+}
+.app-shell h1 {
+  letter-spacing: -0.025em;
+  font-weight: 750;
+}
+.app-shell .card-title-row h2,
+.app-shell .movers-card h2,
+.app-shell .breakdown-card h2 {
+  letter-spacing: -0.015em;
+  font-weight: 650;
+}
+.app-shell .equity-top h2 {
+  letter-spacing: -0.03em;
+  font-weight: 720;
+}

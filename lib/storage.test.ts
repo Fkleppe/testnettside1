@@ -285,3 +285,36 @@ describe("backup restore and import", () => {
     expect(parseImportedJson('{"holdings":[{"id":"x"}]}').ok).toBe(false);
   });
 });
+
+describe("kvotesikker lagring", () => {
+  it("beskjærer og prøver igjen når setItem kaster (full kvote)", () => {
+    const store = fakeStorage();
+    for (let i = 0; i < 10; i += 1) {
+      store.setItem(
+        `${STORAGE_KEYS.BACKUP_PREFIX}2026-08-0${(i % 5) + 1}T0${i}:00:00.000Z`,
+        JSON.stringify({ v: 2, savedAt: `2026-08-01T0${i}:00:00.000Z`, holdings: [holding], events: [] }),
+      );
+    }
+    let failures = 1;
+    const original = store.setItem.bind(store);
+    store.setItem = (key: string, value: string) => {
+      if (key === STORAGE_KEYS.DATA_KEY && failures > 0) {
+        failures -= 1;
+        throw new Error("QuotaExceededError");
+      }
+      original(key, value);
+    };
+    savePortfolio(
+      store,
+      { holdings: [holding], events: [], snapshots: [] },
+      { lastSeenSavedAt: null },
+    );
+    const result = loadPortfolio(store);
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.data.holdings).toHaveLength(1);
+    const backupCount = [...store.map.keys()].filter((k) =>
+      k.startsWith(STORAGE_KEYS.BACKUP_PREFIX),
+    ).length;
+    expect(backupCount).toBeLessThanOrEqual(4);
+  });
+});
