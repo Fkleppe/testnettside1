@@ -421,6 +421,67 @@ export function Portfolio() {
       queueMicrotask(() => setSyncState("off"));
     }
   }, [authStatus]);
+  /** Live-konvergens mellom enheter: en åpen fane henter skyen på nytt ved
+   *  fokus og hvert 90. sekund, og tar nyere fjernversjoner i bruk med samme
+   *  tapsfrie flettepolicy som ved innlogging. */
+  const liveSyncData = useRef<PortfolioData>({
+    holdings: [],
+    events: [],
+    snapshots: [],
+  });
+  useEffect(() => {
+    liveSyncData.current = { holdings, events, snapshots };
+  }, [holdings, events, snapshots]);
+  useEffect(() => {
+    if (authStatus !== "authenticated" || dataState !== "user") return;
+    let busy = false;
+    const pull = async () => {
+      if (busy || document.visibilityState === "hidden") return;
+      busy = true;
+      try {
+        const remote = await fetchRemote();
+        if (!remote) return;
+        const decision = decideMerge(
+          { savedAt: lastSeenSavedAt.current, data: liveSyncData.current },
+          remote,
+        );
+        if (decision.action === "take-remote") {
+          const local = liveSyncData.current;
+          const sameContent =
+            JSON.stringify([local.holdings, local.events]) ===
+            JSON.stringify([decision.data.holdings, decision.data.events]);
+          if (sameContent) {
+            // Kun savedAt er nyere (typisk vårt eget push fra en annen fane)
+            // — adopter stempelet uten re-render, ellers pinger enhetene
+            // hverandre med identisk innhold i evig løkke.
+            lastSeenSavedAt.current = remote.savedAt;
+            setSnapshots((current) =>
+              mergeSnapshots(current, decision.data.snapshots),
+            );
+          } else {
+            replaceAll(decision.data);
+            setSyncState("synced");
+          }
+        } else {
+          setSnapshots((current) =>
+            mergeSnapshots(current, decision.snapshots),
+          );
+        }
+      } finally {
+        busy = false;
+      }
+    };
+    const onFocus = () => void pull();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    const timer = window.setInterval(() => void pull(), 90_000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus, dataState]);
 
   const visibleHoldings = useMemo(
     () =>
