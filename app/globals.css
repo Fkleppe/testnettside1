@@ -2737,9 +2737,17 @@ footer small {
   .holding-head {
     display: none;
   }
-  .asset-trend,
-  .asset-return {
+  .holding-row .asset-trend {
     display: none;
+  }
+  .holding-row .asset-return {
+    grid-column: 1;
+    grid-row: 3;
+    margin-left: 44px;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+    text-align: left;
   }
   .holding-row {
     grid-template-columns: minmax(160px, 1fr) minmax(135px, auto) 56px;
