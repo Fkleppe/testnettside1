@@ -5138,6 +5138,10 @@ footer small {
   flex-direction: column;
   gap: 1px;
 }
+.asset-return b,
+.asset-return small {
+  white-space: nowrap;
+}
 .asset-return b {
   font-size: 0.8125rem;
   font-weight: 700;
