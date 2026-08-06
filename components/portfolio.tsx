@@ -222,7 +222,10 @@ export function Portfolio() {
       .join("|");
     if (refreshedFor.current === signature) return;
     refreshedFor.current = signature;
-    void refreshOfficialFunds(holdings).then((next) => {
+    void refreshAutomaticHoldings(
+      holdings,
+      new Set<AssetKind>(["fund", "stock", "crypto"]),
+    ).then((next) => {
       const byId = new Map(next.map((h) => [h.id, h]));
       setHoldings((current) => {
         let changed = false;
@@ -252,9 +255,15 @@ export function Portfolio() {
     let tick = 0;
     const timer = window.setInterval(() => {
       tick += 1;
-      // Publiseringsvinduet (~11:30): hvert minutt. Ellers: hvert 5. minutt.
-      if (!inNavRushWindow() && tick % 5 !== 0) return;
-      void refreshOfficialFunds(holdings).then((next) => {
+      const kinds = new Set<AssetKind>();
+      // Fond: hvert minutt i publiseringsvinduet (~11:30), ellers hvert 5.
+      if (inNavRushWindow() || tick % 5 === 0) kinds.add("fund");
+      // Krypto handles døgnet rundt: hvert 2. minutt.
+      if (tick % 2 === 0) kinds.add("crypto");
+      // Aksjer: hvert 3. minutt (intradag fra Yahoo/Twelve Data).
+      if (tick % 3 === 0) kinds.add("stock");
+      if (kinds.size === 0) return;
+      void refreshAutomaticHoldings(holdings, kinds).then((next) => {
         const changed = next.some(
           (item, index) =>
             item.price !== holdings[index]?.price ||
@@ -3299,16 +3308,18 @@ function changeLabel(totals: ReturnType<typeof calculateTotals>) {
 function getAccount(item: Holding): AccountGroup {
   return item.accountGroup ?? "private";
 }
-async function refreshOfficialFunds(items: Holding[]) {
-  // ALLE automatiske fond re-polles (Yahoo dekker alle ISIN-er; DNB-fondene
-  // får i tillegg tidlig-verdi fra DNB-siden). NAV endres maks én gang per
-  // dag, og likhetsvakten hindrer unødige re-render/lagringer.
+async function refreshAutomaticHoldings(
+  items: Holding[],
+  kinds: ReadonlySet<AssetKind>,
+) {
+  // Re-poller automatiske beholdninger av valgte typer. Likhetsvakten hos
+  // kalleren hindrer unødige re-render/lagringer når kursen står stille.
   const refreshed = await Promise.all(
     items.map(async (item) => {
-      if (item.kind !== "fund" || item.mode !== "automatic") return item;
+      if (!kinds.has(item.kind) || item.mode !== "automatic") return item;
       try {
         const response = await fetch(
-          `/api/quote?kind=fund&symbol=${encodeURIComponent(item.symbol)}`,
+          `/api/quote?kind=${item.kind}&symbol=${encodeURIComponent(item.symbol)}`,
         );
         if (!response.ok)
           return { ...item, quoteStatus: "source_error" as const };
@@ -3324,6 +3335,9 @@ async function refreshOfficialFunds(items: Holding[]) {
           previousPrice = Number(data.previousPrice);
           dailyPercent = data.changePercent ?? null;
           changePeriod = data.changePeriod;
+        } else if (data.changePeriod === "24h") {
+          dailyPercent = data.changePercent ?? null;
+          changePeriod = "24h";
         } else if (
           item.priceDate &&
           data.priceDate &&
