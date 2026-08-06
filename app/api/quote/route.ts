@@ -25,6 +25,82 @@ const officialFundPages: Record<string, { name: string; url: string }> = {
   },
 };
 
+/** Yahoo/Morningstar-NAV for fond (ISIN → 0P-symbol), i NOK. Returnerer
+ *  null når fondet ikke finnes der — kaller avgjør fallback. */
+async function yahooFundQuote(symbol: string) {
+  try {
+    let yahooSymbol = symbol;
+    if (!symbol.startsWith("0P")) {
+      const searchResponse = await fetch(
+        `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=3&newsCount=0`,
+        { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 604800 } },
+      );
+      const found = searchResponse.ok
+        ? ((await searchResponse.json()).quotes ?? []).find(
+            (item: { quoteType?: string; symbol?: string }) =>
+              Boolean(item.symbol) &&
+              (item.quoteType === "MUTUALFUND" ||
+                /^[A-Z]{2}[A-Z0-9]{10}$/.test(symbol)),
+          )
+        : null;
+      if (!found) return null;
+      yahooSymbol = found.symbol;
+    }
+    const chartResponse = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=5d`,
+      { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 1800 } },
+    );
+    const chart = await chartResponse.json();
+    const result = chart?.chart?.result?.[0];
+    const priceValue = Number(result?.meta?.regularMarketPrice);
+    if (!chartResponse.ok || !result || !(priceValue > 0)) return null;
+    const fundCurrency = result.meta?.currency ?? "NOK";
+    let rate = 1;
+    let previousRate = 1;
+    if (fundCurrency !== "NOK") {
+      const fxResponse = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(`${fundCurrency}NOK=X`)}?interval=1d&range=5d`,
+        { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 1800 } },
+      );
+      const fxMeta = (await fxResponse.json())?.chart?.result?.[0]?.meta;
+      rate = Number(fxMeta?.regularMarketPrice ?? 0);
+      previousRate = Number(
+        fxMeta?.chartPreviousClose ?? fxMeta?.previousClose ?? rate,
+      );
+      if (!(rate > 0)) return null;
+    }
+    const previous = Number(
+      result.meta?.chartPreviousClose ?? result.meta?.previousClose,
+    );
+    const stamp = new Date(
+      (result.meta?.regularMarketTime ?? Date.now() / 1000) * 1000,
+    );
+    const priceNok = priceValue * rate;
+    const previousNok = previous > 0 ? previous * previousRate : undefined;
+    return {
+      symbol,
+      name: result.meta?.longName ?? result.meta?.shortName,
+      price: priceNok,
+      previousPrice: previousNok,
+      changePercent:
+        previousNok && previousNok > 0
+          ? ((priceNok - previousNok) / previousNok) * 100
+          : null,
+      changePeriod: "day" as const,
+      currency: "NOK",
+      nativeCurrency: fundCurrency,
+      source:
+        fundCurrency === "NOK"
+          ? "Yahoo · NAV"
+          : `Yahoo · NAV (omregnet fra ${fundCurrency})`,
+      priceDate: osloDate(stamp),
+      updatedAt: new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function parseNorwegianNumber(value: string) {
   return Number(value.replace(/[^\d,.-]/g, "").replace(",", "."));
 }
@@ -116,7 +192,7 @@ export async function GET(request: NextRequest) {
       );
       const price = navMatch ? parseNorwegianNumber(navMatch[1]) : 0;
       if (response.ok && price > 0) {
-        return NextResponse.json({
+        const dnbQuote = {
           symbol,
           name: officialFundPage.name,
           price,
@@ -126,7 +202,18 @@ export async function GET(request: NextRequest) {
           asOf: navMatch?.[2],
           priceDate: parsePriceDate(navMatch?.[2]),
           updatedAt: new Date().toISOString(),
-        });
+        };
+        // DNB-siden kan henge dager etter. Har Yahoo/Morningstar en NAV med
+        // NYERE dato, serverer vi den — ferskest kilde vinner, DNB ved likhet.
+        const yahoo = await yahooFundQuote(symbol);
+        if (
+          yahoo?.priceDate &&
+          dnbQuote.priceDate &&
+          yahoo.priceDate > dnbQuote.priceDate
+        ) {
+          return NextResponse.json(yahoo);
+        }
+        return NextResponse.json(dnbQuote);
       }
     }
 
@@ -157,79 +244,8 @@ export async function GET(request: NextRequest) {
 
     if (kind === "fund") {
       // Yahoo dekker de fleste norske/europeiske fond (ISIN → 0P…-symbol).
-      try {
-        let yahooSymbol = symbol;
-        if (!symbol.startsWith("0P")) {
-          const searchResponse = await fetch(
-            `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=3&newsCount=0`,
-            { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 604800 } },
-          );
-          const found = searchResponse.ok
-            ? ((await searchResponse.json()).quotes ?? []).find(
-                (item: { quoteType?: string; symbol?: string }) =>
-                  Boolean(item.symbol) &&
-                  (item.quoteType === "MUTUALFUND" ||
-                    /^[A-Z]{2}[A-Z0-9]{10}$/.test(symbol)),
-              )
-            : null;
-          if (found) yahooSymbol = found.symbol;
-        }
-        const chartResponse = await fetch(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=5d`,
-          { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 1800 } },
-        );
-        const chart = await chartResponse.json();
-        const result = chart?.chart?.result?.[0];
-        const priceValue = Number(result?.meta?.regularMarketPrice);
-        if (chartResponse.ok && result && priceValue > 0) {
-          const fundCurrency = result.meta?.currency ?? "NOK";
-          let rate = 1;
-          let previousRate = 1;
-          if (fundCurrency !== "NOK") {
-            const fxResponse = await fetch(
-              `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(`${fundCurrency}NOK=X`)}?interval=1d&range=5d`,
-              { headers: { "User-Agent": "MinSparing/1.0" }, next: { revalidate: 1800 } },
-            );
-            const fxMeta = (await fxResponse.json())?.chart?.result?.[0]?.meta;
-            rate = Number(fxMeta?.regularMarketPrice ?? 0);
-            previousRate = Number(
-              fxMeta?.chartPreviousClose ?? fxMeta?.previousClose ?? rate,
-            );
-            if (!(rate > 0)) rate = 0;
-          }
-          if (rate > 0) {
-            const previous = Number(
-              result.meta?.chartPreviousClose ?? result.meta?.previousClose,
-            );
-            const stamp = new Date(
-              (result.meta?.regularMarketTime ?? Date.now() / 1000) * 1000,
-            );
-            const priceNok = priceValue * rate;
-            const previousNok = previous > 0 ? previous * previousRate : undefined;
-            return NextResponse.json({
-              symbol,
-              name: result.meta?.longName ?? result.meta?.shortName,
-              price: priceNok,
-              previousPrice: previousNok,
-              changePercent:
-                previousNok && previousNok > 0
-                  ? ((priceNok - previousNok) / previousNok) * 100
-                  : null,
-              changePeriod: "day",
-              currency: "NOK",
-              nativeCurrency: fundCurrency,
-              source:
-                fundCurrency === "NOK"
-                  ? "Yahoo · NAV"
-                  : `Yahoo · NAV (omregnet fra ${fundCurrency})`,
-              priceDate: osloDate(stamp),
-              updatedAt: new Date().toISOString(),
-            });
-          }
-        }
-      } catch {
-        // Faller videre til manuell-melding.
-      }
+      const yahoo = await yahooFundQuote(symbol);
+      if (yahoo) return NextResponse.json(yahoo);
       return NextResponse.json(
         {
           error:
