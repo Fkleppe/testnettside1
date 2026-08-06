@@ -255,6 +255,9 @@ export function Portfolio() {
     let tick = 0;
     const timer = window.setInterval(() => {
       tick += 1;
+      // Bakgrunnsfaner poller ikke — fokus-hendelsen henter ferskt uansett
+      // når fanen kommer tilbake. Sparer både kilder og serverkall.
+      if (document.hidden) return;
       const kinds = new Set<AssetKind>();
       // Fond: hvert minutt i publiseringsvinduet (~11:30), ellers hvert 5.
       if (inNavRushWindow() || tick % 5 === 0) kinds.add("fund");
