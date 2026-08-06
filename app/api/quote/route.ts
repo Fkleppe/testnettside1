@@ -101,6 +101,15 @@ async function yahooFundQuote(symbol: string) {
   }
 }
 
+/** Neste bankdag etter en ISO-dato (hopper over helg). */
+function nextBusinessDay(isoDate: string) {
+  const date = new Date(`${isoDate}T12:00:00Z`);
+  do {
+    date.setUTCDate(date.getUTCDate() + 1);
+  } while (date.getUTCDay() === 0 || date.getUTCDay() === 6);
+  return date.toISOString().slice(0, 10);
+}
+
 function parseNorwegianNumber(value: string) {
   return Number(value.replace(/[^\d,.-]/g, "").replace(",", "."));
 }
@@ -203,15 +212,31 @@ export async function GET(request: NextRequest) {
           priceDate: parsePriceDate(navMatch?.[2]),
           updatedAt: new Date().toISOString(),
         };
-        // DNB-siden kan henge dager etter. Har Yahoo/Morningstar en NAV med
-        // NYERE dato, serverer vi den — ferskest kilde vinner, DNB ved likhet.
+        // DNB publiserer neste NAV på sin side FØR Morningstar (~kl 11:30
+        // dagen etter), men dato-etiketten henger igjen. Avviker DNBs VERDI
+        // fra Yahoos nyeste NAV, er DNB-verdien derfor NAV-en for neste
+        // bankdag — datér den ærlig og bruk Yahoos som forrige kurs.
         const yahoo = await yahooFundQuote(symbol);
-        if (
-          yahoo?.priceDate &&
-          dnbQuote.priceDate &&
-          yahoo.priceDate > dnbQuote.priceDate
-        ) {
-          return NextResponse.json(yahoo);
+        if (yahoo?.priceDate && yahoo.price > 0) {
+          const relativeDiff =
+            Math.abs(dnbQuote.price - yahoo.price) / yahoo.price;
+          const labelBehind =
+            !dnbQuote.priceDate || dnbQuote.priceDate <= yahoo.priceDate;
+          if (relativeDiff > 0.0005 && labelBehind) {
+            const inferredDate = nextBusinessDay(yahoo.priceDate);
+            return NextResponse.json({
+              ...dnbQuote,
+              priceDate: inferredDate,
+              asOf: inferredDate,
+              previousPrice: yahoo.price,
+              changePercent:
+                ((dnbQuote.price - yahoo.price) / yahoo.price) * 100,
+              changePeriod: "day",
+            });
+          }
+          if (yahoo.priceDate > (dnbQuote.priceDate ?? "")) {
+            return NextResponse.json(yahoo);
+          }
         }
         return NextResponse.json(dnbQuote);
       }
