@@ -3300,15 +3300,12 @@ function getAccount(item: Holding): AccountGroup {
   return item.accountGroup ?? "private";
 }
 async function refreshOfficialFunds(items: Holding[]) {
-  const supported = new Set(["NO0010337678", "LU2075955943"]);
+  // ALLE automatiske fond re-polles (Yahoo dekker alle ISIN-er; DNB-fondene
+  // får i tillegg tidlig-verdi fra DNB-siden). NAV endres maks én gang per
+  // dag, og likhetsvakten hindrer unødige re-render/lagringer.
   const refreshed = await Promise.all(
     items.map(async (item) => {
-      if (
-        item.kind !== "fund" ||
-        item.mode !== "automatic" ||
-        !supported.has(item.symbol)
-      )
-        return item;
+      if (item.kind !== "fund" || item.mode !== "automatic") return item;
       try {
         const response = await fetch(
           `/api/quote?kind=fund&symbol=${encodeURIComponent(item.symbol)}`,
