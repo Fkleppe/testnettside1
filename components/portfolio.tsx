@@ -62,6 +62,7 @@ import {
 import { periodPnl, type PnlPeriod } from "@/lib/pnl";
 import { drawPnlCard } from "@/lib/pnl-card";
 import { pickGoal } from "@/lib/storage";
+import { inNavRushWindow } from "@/lib/navwindow";
 import { GoalCard } from "@/components/goal-card";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
@@ -248,7 +249,11 @@ export function Portfolio() {
    *  bare state når kurs/status faktisk endret seg. */
   useEffect(() => {
     if (dataState !== "user" || holdings.length === 0) return;
+    let tick = 0;
     const timer = window.setInterval(() => {
+      tick += 1;
+      // Publiseringsvinduet (~11:30): hvert minutt. Ellers: hvert 5. minutt.
+      if (!inNavRushWindow() && tick % 5 !== 0) return;
       void refreshOfficialFunds(holdings).then((next) => {
         const changed = next.some(
           (item, index) =>
@@ -258,7 +263,7 @@ export function Portfolio() {
         );
         if (changed) setHoldings(next);
       });
-    }, 5 * 60 * 1000);
+    }, 60 * 1000);
     return () => window.clearInterval(timer);
   }, [holdings, dataState]);
   /** Rekonstruert historikk: dagens beholdning × ekte kurshistorikk gir en

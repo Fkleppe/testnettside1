@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { inNavRushWindow } from "@/lib/navwindow";
+import { logNavDetection } from "@/lib/navlog";
 import { parsePriceDate } from "@/lib/portfolio";
 
 type AssetKind = "stock" | "fund" | "crypto";
@@ -193,7 +195,7 @@ export async function GET(request: NextRequest) {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/138.0 Safari/537.36",
           "Accept-Language": "nb-NO,nb;q=0.9,en;q=0.7",
         },
-        next: { revalidate: 300 },
+        next: { revalidate: inNavRushWindow() ? 60 : 300 },
       });
       const html = await response.text();
       const navMatch = html.match(
@@ -224,6 +226,7 @@ export async function GET(request: NextRequest) {
             !dnbQuote.priceDate || dnbQuote.priceDate <= yahoo.priceDate;
           if (relativeDiff > 0.0005 && labelBehind) {
             const inferredDate = nextBusinessDay(yahoo.priceDate);
+            await logNavDetection(symbol, inferredDate);
             return NextResponse.json({
               ...dnbQuote,
               priceDate: inferredDate,
