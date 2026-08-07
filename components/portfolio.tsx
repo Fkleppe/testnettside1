@@ -3435,7 +3435,8 @@ async function refreshAutomaticHoldings(
         }
         return {
           ...item,
-          name: data.name ?? item.name,
+          // Kildene forkorter navn ulikt — behold alltid brukerens navn.
+          name: item.name || data.name,
           price: newPrice,
           previousPrice,
           dailyPercent,
