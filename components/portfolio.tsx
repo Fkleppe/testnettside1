@@ -64,6 +64,7 @@ import { drawPnlCard } from "@/lib/pnl-card";
 import { pickGoal } from "@/lib/storage";
 import { inNavRushWindow } from "@/lib/navwindow";
 import { GoalCard } from "@/components/goal-card";
+import { UnlistedScenario } from "@/components/unlisted-scenario";
 import { TaxPanel } from "@/components/tax-panel";
 import { demoHoldings } from "@/lib/demo";
 import {
@@ -1646,7 +1647,9 @@ function ActivityPanel({
 
 function ForecastPanel({ holdings }: { holdings: Holding[] }) {
   const [years, setYears] = useState(5);
-  const [basis, setBasis] = useState<"history" | "manual">("history");
+  const [basis, setBasis] = useState<"history" | "manual" | "unlisted">(
+    "history",
+  );
   const [historyPeriod, setHistoryPeriod] = useState<ReturnPeriod>(5);
   const [annualReturn, setAnnualReturn] = useState("7");
   const [fallbackReturn, setFallbackReturn] = useState("7");
@@ -1724,7 +1727,18 @@ function ForecastPanel({ holdings }: { holdings: Holding[] }) {
         >
           Egne tall
         </button>
+        <button
+          className={basis === "unlisted" ? "selected" : ""}
+          aria-pressed={basis === "unlisted"}
+          onClick={() => setBasis("unlisted")}
+        >
+          Unoterte aksjer
+        </button>
       </div>
+      {basis === "unlisted" ? (
+        <UnlistedScenario holdings={holdings} />
+      ) : (
+        <>
       <div className="forecast-layout">
         <div className="forecast-controls">
           {basis === "history" ? (
@@ -1977,6 +1991,8 @@ function ForecastPanel({ holdings }: { holdings: Holding[] }) {
           <small>{formatRate(strongRate)} årlig</small>
         </div>
       </div>
+        </>
+      )}
       <p className="forecast-note">
         <CircleHelp size={14} /> Historisk avkastning er ingen garanti for
         fremtidig avkastning. Scenarioet er nominelt og før skatt,

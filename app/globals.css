@@ -5639,3 +5639,116 @@ body {
   color: var(--muted);
   line-height: 1.5;
 }
+
+/* Unotert-scenario i Fremtidsestimat */
+.unlisted-scenario {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 20px 16px;
+}
+.unlisted-scenario-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--muted);
+}
+.unlisted-scenario-empty b {
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.unlisted-scenario-empty small {
+  max-width: 360px;
+  line-height: 1.5;
+}
+.unlisted-company {
+  border: 1px solid var(--line-soft);
+  border-radius: 13px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.unlisted-company-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.unlisted-company-head b {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.unlisted-company-head small {
+  color: var(--muted);
+  font-size: 0.7188rem;
+}
+.unlisted-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.unlisted-inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.unlisted-inputs input {
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  padding: 9px 11px;
+  font-size: 0.8125rem;
+}
+.unlisted-result {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
+}
+.unlisted-your-value {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.unlisted-your-value span {
+  font-size: 0.6875rem;
+  color: var(--quiet);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+.unlisted-your-value b {
+  font-size: 1.5rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--positive);
+}
+.unlisted-your-value small {
+  color: var(--muted);
+  font-size: 0.7188rem;
+}
+.unlisted-your-value em {
+  font-style: normal;
+  font-weight: 650;
+}
+.unlisted-waiting {
+  color: var(--quiet);
+  font-size: 0.7188rem;
+}
+.unlisted-note {
+  color: var(--quiet);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  display: flex;
+  gap: 6px;
+}
+@media (max-width: 680px) {
+  .unlisted-inputs {
+    grid-template-columns: 1fr;
+  }
+}
