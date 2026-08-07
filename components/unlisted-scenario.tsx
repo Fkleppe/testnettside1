@@ -29,6 +29,10 @@ function parseAmount(value: string) {
   return Number(value.replace(/\s/g, "").replace(",", ".")) || 0;
 }
 
+function groupDigits(raw: string) {
+  return raw.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
 function loadAssumptions(): Record<string, Assumption> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -47,9 +51,36 @@ export function UnlistedScenario({ holdings }: { holdings: Holding[] }) {
   const [assumptions, setAssumptions] = useState<Record<string, Assumption>>(
     {},
   );
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   useEffect(() => {
     queueMicrotask(() => setAssumptions(loadAssumptions()));
   }, []);
+
+  /** Levende tusenskille uten at markøren hopper: tell sifre foran
+   *  markøren, formater, og sett markøren bak samme antall sifre. */
+  const handleAmount = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    draftKey: string,
+    commit: (amount: number) => void,
+  ) => {
+    const element = event.target;
+    const caretDigits = element.value
+      .slice(0, element.selectionStart ?? element.value.length)
+      .replace(/\D/g, "").length;
+    const raw = element.value.replace(/\D/g, "").slice(0, 15);
+    const formatted = groupDigits(raw);
+    setDrafts((current) => ({ ...current, [draftKey]: formatted }));
+    commit(Number(raw) || 0);
+    requestAnimationFrame(() => {
+      let position = 0;
+      let seen = 0;
+      while (position < formatted.length && seen < caretDigits) {
+        if (/\d/.test(formatted[position])) seen += 1;
+        position += 1;
+      }
+      element.setSelectionRange(position, position);
+    });
+  };
 
   const update = (id: string, patch: Assumption) => {
     setAssumptions((current) => {
@@ -108,11 +139,14 @@ export function UnlistedScenario({ holdings }: { holdings: Holding[] }) {
                 <input
                   inputMode="numeric"
                   placeholder="F.eks. 152 679 600"
-                  defaultValue={totalShares > 0 ? String(totalShares) : ""}
+                  value={
+                    drafts[`${item.id}:t`] ??
+                    (totalShares > 0 ? groupDigits(String(totalShares)) : "")
+                  }
                   onChange={(event) =>
-                    update(item.id, {
-                      totalShares: parseAmount(event.target.value),
-                    })
+                    handleAmount(event, `${item.id}:t`, (amount) =>
+                      update(item.id, { totalShares: amount }),
+                    )
                   }
                 />
               </label>
@@ -121,11 +155,14 @@ export function UnlistedScenario({ holdings }: { holdings: Holding[] }) {
                 <input
                   inputMode="numeric"
                   placeholder="F.eks. 916 000 000"
-                  defaultValue={marketCap > 0 ? String(marketCap) : ""}
+                  value={
+                    drafts[`${item.id}:m`] ??
+                    (marketCap > 0 ? groupDigits(String(marketCap)) : "")
+                  }
                   onChange={(event) =>
-                    update(item.id, {
-                      marketCap: parseAmount(event.target.value),
-                    })
+                    handleAmount(event, `${item.id}:m`, (amount) =>
+                      update(item.id, { marketCap: amount }),
+                    )
                   }
                 />
               </label>
