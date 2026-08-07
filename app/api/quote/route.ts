@@ -134,8 +134,13 @@ function pickFreshestFund(candidates: (FundCandidate | null)[]) {
   });
   const winner = { ...valid[0] };
   if (winner.priceDate) {
+    // Identisk verdi på eldre dato = kildens dato-etikett henger etter
+    // (samme NAV, feil merket) — aldri en ekte flat dag. Hopp over slike.
     const previous = valid.find(
-      (item) => item.priceDate && item.priceDate < (winner.priceDate as string),
+      (item) =>
+        item.priceDate &&
+        item.priceDate < (winner.priceDate as string) &&
+        Math.abs(item.price - winner.price) / winner.price > 0.00005,
     );
     if (previous) {
       winner.previousPrice = previous.price;
