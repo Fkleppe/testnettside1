@@ -3393,6 +3393,11 @@ function changeLabel(totals: ReturnType<typeof calculateTotals>) {
 function getAccount(item: Holding): AccountGroup {
   return item.accountGroup ?? "private";
 }
+const CANONICAL_FUND_NAMES: Record<string, string> = {
+  NO0010337678: "DNB Teknologi A",
+  LU2075955943: "DNB Fund – Disruptive Opportunities Retail A (N) NOK",
+};
+
 async function refreshAutomaticHoldings(
   items: Holding[],
   kinds: ReadonlySet<AssetKind>,
@@ -3435,8 +3440,10 @@ async function refreshAutomaticHoldings(
         }
         return {
           ...item,
-          // Kildene forkorter navn ulikt — behold alltid brukerens navn.
-          name: item.name || data.name,
+          // Kildene forkorter navn ulikt — behold brukerens navn; katalog-
+          // fondene heales til kanonisk navn (kilde-kortnavn lakk inn før).
+          name:
+            CANONICAL_FUND_NAMES[item.symbol] ?? (item.name || data.name),
           price: newPrice,
           previousPrice,
           dailyPercent,
