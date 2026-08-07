@@ -2706,6 +2706,7 @@ function AddPanel({
                   <option>DNB</option>
                   <option>Storebrand</option>
                   <option>KLP</option>
+                  <option>Unotert</option>
                   <option>Annet</option>
                 </select>
                 <ChevronDown size={14} />
@@ -3245,6 +3246,7 @@ function EditPanel({
                   <option>DNB</option>
                   <option>Storebrand</option>
                   <option>KLP</option>
+                  <option>Unotert</option>
                   <option>Annet</option>
                 </select>
                 <ChevronDown size={14} />
