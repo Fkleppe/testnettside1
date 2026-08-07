@@ -2234,7 +2234,7 @@ function HoldingRow({
                 className="quote-status neutral"
                 title="Unotert aksje — verdien er ditt eget estimat (siste emisjonskurs e.l.)"
               >
-                Unotert · eget estimat
+                Eget estimat
               </span>
             ) : (
               <span
