@@ -33,6 +33,7 @@ const holdingSchema = z
     delayed: z.boolean().optional(),
     accountGroup: z.enum(["private", "business", "family", "pension"]).optional(),
     wrapper: z.enum(["ask", "none"]).optional(),
+    listing: z.literal("unlisted").optional(),
   })
   .passthrough();
 

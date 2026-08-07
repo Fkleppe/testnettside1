@@ -5629,3 +5629,13 @@ body {
 .nav-sources-chips i.is-missing {
   opacity: 0.5;
 }
+
+/* Unoterte aksjer */
+.unlisted-hint {
+  border: 1px dashed var(--line-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.7188rem;
+  color: var(--muted);
+  line-height: 1.5;
+}

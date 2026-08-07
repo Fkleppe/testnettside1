@@ -35,6 +35,8 @@ export type Holding = {
   accountGroup?: AccountGroup;
   /** Skattemessig innpakning: "ask" = aksjesparekonto (utsatt gevinstskatt). */
   wrapper?: "ask" | "none";
+  /** Unotert aksje — verdsettes manuelt, kan ikke stå i ASK. */
+  listing?: "unlisted";
 };
 
 export type PortfolioEvent = {

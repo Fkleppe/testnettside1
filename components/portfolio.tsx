@@ -2229,9 +2229,21 @@ function HoldingRow({
           <h3>{item.name}</h3>
           <p>
             {item.platform} · {item.symbol} ·{" "}
-            <span className={`quote-status ${quote.tone}`} title={quote.detail}>
-              {quote.label}
-            </span>
+            {item.listing === "unlisted" ? (
+              <span
+                className="quote-status neutral"
+                title="Unotert aksje — verdien er ditt eget estimat (siste emisjonskurs e.l.)"
+              >
+                Unotert · eget estimat
+              </span>
+            ) : (
+              <span
+                className={`quote-status ${quote.tone}`}
+                title={quote.detail}
+              >
+                {quote.label}
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -2346,6 +2358,7 @@ function AddPanel({
   const [mode, setMode] = useState<PriceMode>("automatic");
   const [accountGroup, setAccountGroup] = useState<AccountGroup>("private");
   const [wrapper, setWrapper] = useState<"ask" | "none">("none");
+  const [unlisted, setUnlisted] = useState(false);
   const [entryMethod, setEntryMethod] = useState<"value" | "units">("value");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Instrument | null>(null);
@@ -2468,14 +2481,16 @@ function AddPanel({
     const finalUnits =
       entryMethod === "value" ? calculatedUnits : toNumber(units);
     const currentValue = finalUnits * toNumber(price);
-    if (!name || !symbol || !price || !finalUnits)
+    if (!name || (!symbol && !unlisted) || !price || !finalUnits)
       return setError(
         "Velg investering og fyll inn verdi eller antall samt gjeldende kurs.",
       );
     onAdd({
       id: crypto.randomUUID(),
       name,
-      symbol: symbol.toUpperCase(),
+      symbol: (symbol || (unlisted ? (name.split(/\s+/)[0] ?? "UNOTERT") : ""))
+        .toUpperCase()
+        .slice(0, 12),
       kind,
       platform,
       mode,
@@ -2486,13 +2501,18 @@ function AddPanel({
       dailyPercent: daily.trim() ? toNumber(daily) : null,
       changePeriod,
       currency: "NOK",
-      source: mode === "manual" ? "Manuelt registrert" : quoteSource,
+      source: unlisted
+        ? "Eget estimat"
+        : mode === "manual"
+          ? "Manuelt registrert"
+          : quoteSource,
       updatedAt: new Date().toISOString(),
       priceDate,
       quoteStatus: mode === "manual" ? "manual_override" : undefined,
       priceAsOf: quoteAsOf || undefined,
       accountGroup,
-      wrapper: kind === "crypto" ? undefined : wrapper,
+      wrapper: kind === "crypto" || unlisted ? undefined : wrapper,
+      listing: unlisted ? "unlisted" : undefined,
     });
   }
 
@@ -2521,13 +2541,30 @@ function AddPanel({
               <button
                 type="button"
                 key={value}
-                className={kind === value ? "selected" : ""}
-                onClick={() => changeKind(value)}
+                className={kind === value && !unlisted ? "selected" : ""}
+                onClick={() => {
+                  setUnlisted(false);
+                  changeKind(value);
+                }}
               >
                 {kindLabel[value]}
               </button>
             ))}
+            <button
+              type="button"
+              className={unlisted ? "selected" : ""}
+              onClick={() => {
+                changeKind("stock");
+                setUnlisted(true);
+                setMode("manual");
+                setPlatform("Unotert");
+                setSelected(null);
+              }}
+            >
+              Unotert
+            </button>
           </fieldset>
+          {unlisted ? null : (
           <div className="instrument-picker">
             <label>
               {selected
@@ -2602,7 +2639,17 @@ function AddPanel({
               </>
             )}
           </div>
-          <fieldset className="mode-choice">
+          )}
+          {unlisted ? (
+            <p className="unlisted-hint">
+              Unoterte aksjer verdsettes manuelt — bruk siste emisjonskurs
+              eller kjente omsetninger som estimat.
+            </p>
+          ) : null}
+          <fieldset
+            className="mode-choice"
+            style={unlisted ? { display: "none" } : undefined}
+          >
             <legend>Kurshenting</legend>
             <label className={mode === "automatic" ? "chosen" : ""}>
               <input
@@ -2683,7 +2730,7 @@ function AddPanel({
               </div>
             </label>
           </div>
-          {kind !== "crypto" ? (
+          {kind !== "crypto" && !unlisted ? (
             <label className="ask-toggle">
               <input
                 type="checkbox"
@@ -3222,7 +3269,7 @@ function EditPanel({
               </div>
             </label>
           </div>
-          {item.kind !== "crypto" ? (
+          {item.kind !== "crypto" && item.listing !== "unlisted" ? (
             <label className="ask-toggle">
               <input
                 type="checkbox"
