@@ -5578,3 +5578,54 @@ body {
   .dash-tri > *:nth-child(3) { animation-delay: 0.22s; }
   .dash-tri > *:nth-child(4) { animation-delay: 0.27s; }
 }
+
+/* NAV-kilder i Datakvalitet */
+.nav-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--line-soft);
+}
+.nav-sources > b {
+  font-size: 0.6563rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--quiet);
+  font-weight: 700;
+}
+.nav-sources-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav-sources-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav-sources-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.nav-sources-chips i,
+.nav-sources-chips em {
+  font-style: normal;
+  font-size: 0.6563rem;
+  color: var(--muted);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.nav-sources-chips i.is-serving {
+  color: var(--positive);
+  border-color: color-mix(in oklab, var(--positive) 40%, var(--line-soft));
+  background: color-mix(in oklab, var(--positive) 8%, transparent);
+}
+.nav-sources-chips i.is-missing {
+  opacity: 0.5;
+}

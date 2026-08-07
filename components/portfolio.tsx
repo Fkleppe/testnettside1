@@ -1410,6 +1410,87 @@ function TodayPanel({
   );
 }
 
+type NavSourceRow = { price: number; priceDate: string | null; source: string } | null;
+type NavSourcesPayload = {
+  serving: NavSourceRow;
+  sources: { dnb: NavSourceRow; nordnet: NavSourceRow; morningstar: NavSourceRow };
+};
+const navSourcesCache = new Map<string, Promise<NavSourcesPayload | null>>();
+
+/** Alle kilders syn på fondets NAV — gjør multikilde-systemet synlig og
+ *  etterprøvbart rett i appen. */
+function NavSourcesList({ holdings }: { holdings: Holding[] }) {
+  const funds = holdings.filter(
+    (item) => item.kind === "fund" && item.mode === "automatic",
+  );
+  const [data, setData] = useState<Record<string, NavSourcesPayload | null>>({});
+  useEffect(() => {
+    let cancelled = false;
+    for (const fund of funds) {
+      const key = fund.symbol;
+      if (!navSourcesCache.has(key)) {
+        navSourcesCache.set(
+          key,
+          fetch(`/api/nav-sources?symbol=${encodeURIComponent(key)}`)
+            .then((response) => (response.ok ? response.json() : null))
+            .catch(() => null),
+        );
+      }
+      void navSourcesCache.get(key)?.then((payload) => {
+        if (!cancelled) {
+          setData((current) =>
+            current[key] === payload ? current : { ...current, [key]: payload },
+          );
+        }
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [funds]);
+  if (funds.length === 0) return null;
+  const short = (date: string | null) => (date ? date.slice(5).split("-").reverse().join(".") : "—");
+  const labels: [keyof NavSourcesPayload["sources"], string][] = [
+    ["dnb", "DNB"],
+    ["nordnet", "Nordnet"],
+    ["morningstar", "Morningstar"],
+  ];
+  return (
+    <div className="nav-sources">
+      <b>NAV-kilder · nyeste dato vinner</b>
+      {funds.map((fund) => {
+        const payload = data[fund.symbol];
+        return (
+          <div key={fund.id} className="nav-sources-row">
+            <span className="nav-sources-name">{fund.name}</span>
+            <span className="nav-sources-chips">
+              {payload === undefined ? (
+                <em>Henter …</em>
+              ) : payload === null ? (
+                <em>Utilgjengelig</em>
+              ) : (
+                labels.map(([key, label]) => {
+                  const row = payload.sources[key];
+                  const serving =
+                    row &&
+                    payload.serving &&
+                    row.source === payload.serving.source &&
+                    row.priceDate === payload.serving.priceDate;
+                  return (
+                    <i key={key} className={serving ? "is-serving" : row ? undefined : "is-missing"}>
+                      {label} {row ? short(row.priceDate) : "—"}
+                    </i>
+                  );
+                })
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DataPanel({ holdings }: { holdings: Holding[] }) {
   const [expanded, setExpanded] = useState(false);
   const states = holdings.map((item) => getQuoteState(item));
@@ -1499,6 +1580,7 @@ function DataPanel({ holdings }: { holdings: Holding[] }) {
           </p>
         </div>
       )}
+      {collapsed ? null : <NavSourcesList holdings={holdings} />}
     </section>
   );
 }
