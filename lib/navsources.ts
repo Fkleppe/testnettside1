@@ -35,7 +35,10 @@ export const officialFundPages: Record<string, { name: string; url: string }> =
   };
 
 function parseNorwegianNumber(value: string) {
-  return Number(value.replace(/\s/g, "").replace(",", ".")) || 0;
+  // Tåler suffiks som «7 287,73 kroner» — plukk første tallgruppe.
+  const match = value.replace(/\u00a0/g, " ").match(/\d[\d\s]*(?:,\d+)?/);
+  if (!match) return 0;
+  return Number(match[0].replace(/\s/g, "").replace(",", ".")) || 0;
 }
 
 function osloDate(value = new Date()) {
